@@ -40,10 +40,22 @@ const { values: flags } = parseArgs({
   },
 });
 
-if (flags.help) { console.log(USAGE); process.exit(0); }
+if (flags.help) {
+  console.log(USAGE);
+  process.exit(0);
+}
 
-const fail = (err) => { console.error(`dcsh: ${formatError(err)}`); process.exit(1); };
-const config = (() => { try { return loadConfig(flags.config); } catch (e) { fail(e); } })();
+const fail = (err) => {
+  console.error(`dcsh: ${formatError(err)}`);
+  process.exit(1);
+};
+const config = (() => {
+  try {
+    return loadConfig(flags.config);
+  } catch (e) {
+    fail(e);
+  }
+})();
 const session = new Session({ operator: flags.operator ?? config.operator ?? userInfo().username });
 
 async function activate(profileName, { atStartup }) {
@@ -65,7 +77,9 @@ async function activate(profileName, { atStartup }) {
 
 try {
   await activate(flags.profile ?? config.defaultProfile, { atStartup: true });
-} catch (e) { fail(e); }
+} catch (e) {
+  fail(e);
+}
 
 const promptText = () => {
   const ro = session.readOnly ? ' [ro]' : '';
@@ -94,7 +108,10 @@ const defaultEval = server.eval;
 let pending = Promise.resolve();
 let inFlight = 0;
 server.eval = (code, context, file, cb) => {
-  const finish = (err, result) => { server.setPrompt(promptText()); cb(err, result); };
+  const finish = (err, result) => {
+    server.setPrompt(promptText());
+    cb(err, result);
+  };
   const stmt = parse(code);
   if (!stmt) {
     // Synchronous when idle, so multi-line input (Recoverable errors) keeps working.
@@ -105,7 +122,11 @@ server.eval = (code, context, file, cb) => {
   pending = pending.then(() =>
     dispatch(stmt, { session, config, switchProfile: (name) => activate(name, { atStartup: false }) })
       .catch((err) => console.error(formatError(err)))
-      .finally(() => { inFlight--; finish(null, undefined); }));
+      .finally(() => {
+        inFlight--;
+        finish(null, undefined);
+      }),
+  );
 };
 
 const defaultCompleter = server.completer;
@@ -118,7 +139,8 @@ server.completer = (line, cb) => {
   };
   if (rest.length === 0) {
     return defaultCompleter.call(server, line, (err, [hits, sub]) =>
-      cb(err, [[...KEYWORDS.filter((k) => k.startsWith(line)), ...hits], sub]));
+      cb(err, [[...KEYWORDS.filter((k) => k.startsWith(line)), ...hits], sub]),
+    );
   }
   if (head === 'show') return done(SHOW_TARGETS);
   if (head === 'profile') return done(Object.keys(config.profiles));
@@ -132,6 +154,7 @@ server.setupHistory(join(stateDir(), 'history'), (err) => {
 });
 
 function formatError(err) {
-  if (err?.rawError) return `${err.status ?? ''} ${err.method ?? ''} ${err.url ?? ''}\n  ${err.code}: ${err.message}`.trim();
+  if (err?.rawError)
+    return `${err.status ?? ''} ${err.method ?? ''} ${err.url ?? ''}\n  ${err.code}: ${err.message}`.trim();
   return err?.message ?? String(err);
 }

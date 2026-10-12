@@ -101,7 +101,10 @@ function promptHidden(question) {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     let asked = false;
     rl._writeToOutput = (s) => {
-      if (!asked) { process.stdout.write(s); asked = true; }
+      if (!asked) {
+        process.stdout.write(s);
+        asked = true;
+      }
     };
     rl.question(question, (answer) => {
       rl.close();

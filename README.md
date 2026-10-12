@@ -26,36 +26,24 @@ The config file lives at `$XDG_CONFIG_HOME/dcsh/config.json` (Windows: `%APPDATA
 
 ```json
 {
-    "defaultProfile": "arkanis-main",
-    "operator": "delta",
-    "profiles": {
-        "arkanis-main": {
-            "token": {
-                "command": [
-                    "vault",
-                    "kv",
-                    "get",
-                    "-field=token",
-                    "secret/arkanis/discord/main-bot"
-                ]
-            },
-            "defaultGuild": "123456789012345678"
-        },
-        "medrunner-prod": {
-            "token": {
-                "command": [
-                    "vault",
-                    "kv",
-                    "get",
-                    "-field=token",
-                    "secret/medrunner/discord/bot"
-                ]
-            },
-            "readOnly": true
-        },
-        "local-test": { "token": { "file": "~/.secrets/dcsh-test.token" } },
-        "adhoc": { "token": { "env": "BOT_TOKEN" } }
-    }
+  "defaultProfile": "arkanis-main",
+  "operator": "delta",
+  "profiles": {
+    "arkanis-main": {
+      "token": {
+        "command": ["vault", "kv", "get", "-field=token", "secret/arkanis/discord/main-bot"]
+      },
+      "defaultGuild": "123456789012345678"
+    },
+    "medrunner-prod": {
+      "token": {
+        "command": ["vault", "kv", "get", "-field=token", "secret/medrunner/discord/bot"]
+      },
+      "readOnly": true
+    },
+    "local-test": { "token": { "file": "~/.secrets/dcsh-test.token" } },
+    "adhoc": { "token": { "env": "BOT_TOKEN" } }
+  }
 }
 ```
 

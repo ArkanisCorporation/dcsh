@@ -3,9 +3,16 @@
   "version": "0.1.0",
   "description": "Discord REST shell: a mongosh-style REPL acting as a bot account",
   "type": "module",
-  "bin": { "dcsh": "dist/bin/dcsh.js" },
-  "files": ["dist", "README.md"],
-  "engines": { "node": ">=22" },
+  "bin": {
+    "dcsh": "dist/bin/dcsh.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "build": "tsc -b",
@@ -24,7 +31,9 @@
     "discord-api-types": "0.38.56"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@commitlint/cli": "19.6.1",

@@ -40,7 +40,10 @@ export async function dispatch({ cmd, arg }, { session, config, switchProfile })
       return showContext(session);
 
     case 'use':
-      if (arg === 'none') { session.guild = null; return; }
+      if (arg === 'none') {
+        session.guild = null;
+        return;
+      }
       if (!arg) throw new Error('usage: use <id|name>');
       await session.use(arg);
       return console.log(`switched to ${session.guild.name} (${session.guild.id})`);
@@ -91,9 +94,14 @@ async function show(arg, session, config) {
       const g = session.requireGuild();
       const roles = await session.api.get(Routes.guildRoles(g.id));
       return console.table(
-        roles.sort((a, b) => b.position - a.position).map((r) => ({
-          id: r.id, name: r.name, position: r.position, managed: r.managed ? 'yes' : '',
-        })),
+        roles
+          .sort((a, b) => b.position - a.position)
+          .map((r) => ({
+            id: r.id,
+            name: r.name,
+            position: r.position,
+            managed: r.managed ? 'yes' : '',
+          })),
       );
     }
     case 'members': {
@@ -103,18 +111,28 @@ async function show(arg, session, config) {
         const members = await session.api.get(Routes.guildMembers(g.id), {
           query: new URLSearchParams({ limit: String(limit) }),
         });
-        return console.table(members.map((m) => ({
-          id: m.user.id, user: m.user.username, nick: m.nick ?? '', bot: m.user.bot ? 'yes' : '',
-        })));
+        return console.table(
+          members.map((m) => ({
+            id: m.user.id,
+            user: m.user.username,
+            nick: m.nick ?? '',
+            bot: m.user.bot ? 'yes' : '',
+          })),
+        );
       } catch (err) {
         if (err.status === 403) throw new Error('403: enable the GUILD_MEMBERS privileged intent for this bot');
         throw err;
       }
     }
     case 'profiles':
-      return console.table(Object.entries(config.profiles).map(([name, p]) => ({
-        name, active: name === session.profile ? '*' : '', defaultGuild: p.defaultGuild ?? '', readOnly: p.readOnly ? 'yes' : '',
-      })));
+      return console.table(
+        Object.entries(config.profiles).map(([name, p]) => ({
+          name,
+          active: name === session.profile ? '*' : '',
+          defaultGuild: p.defaultGuild ?? '',
+          readOnly: p.readOnly ? 'yes' : '',
+        })),
+      );
     case 'context':
       return showContext(session);
     default:
