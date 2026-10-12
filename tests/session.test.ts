@@ -43,6 +43,7 @@ describe('mutation guard', () => {
     const s = new Session({ operator: 'delta' });
     await s.connect('t', {});
     expect(() => s.api.delete(Routes.channel('1'))).toThrow(/reason/);
+    expect(calls).toHaveLength(0); // guard throws before the REST client is reached
   });
 
   it('formats and truncates the audit reason to 512 chars', async () => {

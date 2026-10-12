@@ -76,4 +76,10 @@ describe('resolveToken clean()', () => {
     await expect(resolveToken({ env: 'DCSH_TEST_TOKEN' })).rejects.toThrow(/empty or malformed/);
     delete process.env.DCSH_TEST_TOKEN;
   });
+
+  it('rejects a whitespace-only token (empty after trim)', async () => {
+    process.env.DCSH_TEST_TOKEN = '   ';
+    await expect(resolveToken({ env: 'DCSH_TEST_TOKEN' })).rejects.toThrow(/empty or malformed/);
+    delete process.env.DCSH_TEST_TOKEN;
+  });
 });
