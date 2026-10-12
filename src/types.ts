@@ -1,9 +1,5 @@
 /** A profile/flag specifies the bot token through exactly one of these four shapes. */
-export type TokenSource =
-  | { command: string | string[] }
-  | { env: string }
-  | { file: string }
-  | { prompt: true };
+export type TokenSource = { command: string | string[] } | { env: string } | { file: string } | { prompt: true };
 
 /** One configured bot profile from the config file. */
 export interface Profile {
