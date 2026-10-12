@@ -3,7 +3,7 @@
 A mongosh-style REPL that acts as a bot account over the Discord REST API (v10). It never connects to the gateway, so it can't interfere with the running bot's session. It does share that bot's rate-limit buckets.
 
 ```
-npm install && npm link        # Node >= 20.6
+pnpm install && pnpm build && pnpm link --global   # Node >= 22
 dcsh -p arkanis-main
 arkanis-main> show servers
 arkanis-main> use Arkanis
@@ -13,6 +13,20 @@ arkanis-main/Arkanis> await api.delete(Routes.channel('1234567890123456789'))
 ```
 
 Type `help` in the shell for the full statement list.
+
+## Development
+
+dcsh is written in TypeScript (ESM) and built with `tsc` to `dist/`; the `dcsh` bin runs the compiled output.
+
+```
+pnpm dev            # run the shell straight from source via tsx
+pnpm test           # run the vitest suite
+pnpm lint           # eslint + prettier --check
+pnpm build          # compile to dist/
+pnpm typecheck      # tsc --noEmit
+```
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/); a husky `commit-msg` hook enforces this and `pre-commit` runs lint (plus a gitleaks secret scan where installed). Dependencies are kept current by the shared Arkanis Renovate preset, and CI runs the shared `ArkanisCorporation/ci` Node workflows (lint, test, build).
 
 ## Token sources
 
