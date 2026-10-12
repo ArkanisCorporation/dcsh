@@ -1,14 +1,16 @@
 import { Routes, ChannelType } from 'discord-api-types/v10';
+import type { Statement, Keyword, Config } from './types.js';
+import type { Session } from './session.js';
 
-export const KEYWORDS = ['show', 'use', 'profile', 'reason', 'readonly', 'whoami', 'help'];
-export const SHOW_TARGETS = ['servers', 'channels', 'roles', 'members', 'profiles', 'context'];
+export const KEYWORDS: readonly Keyword[] = ['show', 'use', 'profile', 'reason', 'readonly', 'whoami', 'help'];
+export const SHOW_TARGETS = ['servers', 'channels', 'roles', 'members', 'profiles', 'context'] as const;
 
 // Only intercept if the line looks like a statement, not JS (e.g. `show(x)`, `use = 1`, `reason.length`).
 const STATEMENT = new RegExp(`^(${KEYWORDS.join('|')})(?:\\s+([^=(.].*))?$`);
 
-export function parse(line) {
+export function parse(line: string): Statement | null {
   const m = STATEMENT.exec(line.trim());
-  return m ? { cmd: m[1], arg: (m[2] ?? '').trim() } : null;
+  return m ? { cmd: m[1]! as Keyword, arg: (m[2] ?? '').trim() } : null;
 }
 
 const HELP = `
@@ -31,7 +33,14 @@ JavaScript (top-level await works)
   e.g. await api.delete(Routes.channel('123'), { reason: 'orphaned VC' })
 `;
 
-export async function dispatch({ cmd, arg }, { session, config, switchProfile }) {
+export async function dispatch(
+  { cmd, arg }: Statement,
+  {
+    session,
+    config,
+    switchProfile,
+  }: { session: Session; config: Config; switchProfile: (name: string) => Promise<void> },
+): Promise<unknown> {
   switch (cmd) {
     case 'help':
       return console.log(HELP);
@@ -46,7 +55,7 @@ export async function dispatch({ cmd, arg }, { session, config, switchProfile })
       }
       if (!arg) throw new Error('usage: use <id|name>');
       await session.use(arg);
-      return console.log(`switched to ${session.guild.name} (${session.guild.id})`);
+      return console.log(`switched to ${session.guild!.name} (${session.guild!.id})`);
 
     case 'profile':
       if (!arg) throw new Error('usage: profile <name>');
@@ -66,7 +75,13 @@ export async function dispatch({ cmd, arg }, { session, config, switchProfile })
   }
 }
 
-async function show(arg, session, config) {
+// Narrow structural shapes for the fields the row-mappings read. Guild channels/roles/members
+// always carry these (unlike the full APIChannel union, whose DM variants allow null names).
+type ChannelRow = { id: string; type: number; name: string; parent_id?: string | null; position: number };
+type RoleRow = { id: string; name: string; position: number; managed: boolean };
+type MemberRow = { user: { id: string; username: string; bot?: boolean }; nick?: string | null };
+
+async function show(arg: string, session: Session, config: Config): Promise<unknown> {
   const [target, ...rest] = arg.split(/\s+/);
   const param = rest.join(' ');
   switch (target) {
@@ -77,7 +92,7 @@ async function show(arg, session, config) {
     }
     case 'channels': {
       const g = session.requireGuild();
-      const chans = await session.api.get(Routes.guildChannels(g.id));
+      const chans = (await session.api.get(Routes.guildChannels(g.id))) as ChannelRow[];
       const byId = new Map(chans.map((c) => [c.id, c]));
       const rows = chans
         .filter((c) => !param || c.name.toLowerCase().includes(param.toLowerCase()))
@@ -86,13 +101,13 @@ async function show(arg, session, config) {
           id: c.id,
           type: ChannelType[c.type] ?? c.type,
           name: c.name,
-          category: byId.get(c.parent_id)?.name ?? '',
+          category: (c.parent_id ? byId.get(c.parent_id)?.name : '') ?? '',
         }));
       return console.table(rows);
     }
     case 'roles': {
       const g = session.requireGuild();
-      const roles = await session.api.get(Routes.guildRoles(g.id));
+      const roles = (await session.api.get(Routes.guildRoles(g.id))) as RoleRow[];
       return console.table(
         roles
           .sort((a, b) => b.position - a.position)
@@ -108,9 +123,9 @@ async function show(arg, session, config) {
       const g = session.requireGuild();
       const limit = Math.min(Number(param) || 100, 1000);
       try {
-        const members = await session.api.get(Routes.guildMembers(g.id), {
+        const members = (await session.api.get(Routes.guildMembers(g.id), {
           query: new URLSearchParams({ limit: String(limit) }),
-        });
+        })) as MemberRow[];
         return console.table(
           members.map((m) => ({
             id: m.user.id,
@@ -120,7 +135,8 @@ async function show(arg, session, config) {
           })),
         );
       } catch (err) {
-        if (err.status === 403) throw new Error('403: enable the GUILD_MEMBERS privileged intent for this bot');
+        if ((err as { status?: number }).status === 403)
+          throw new Error('403: enable the GUILD_MEMBERS privileged intent for this bot');
         throw err;
       }
     }
@@ -140,18 +156,18 @@ async function show(arg, session, config) {
   }
 }
 
-function sortKey(c, byId) {
-  const parent = byId.get(c.parent_id);
-  const pad = (n) => String(n ?? 0).padStart(5, '0');
+function sortKey(c: ChannelRow, byId: Map<string, ChannelRow>): string {
+  const parent = c.parent_id ? byId.get(c.parent_id) : undefined;
+  const pad = (n: number | undefined) => String(n ?? 0).padStart(5, '0');
   // Categories first by position, then their children; uncategorized on top.
   return c.type === ChannelType.GuildCategory
     ? `${pad(c.position)}`
     : `${parent ? pad(parent.position) : '00000'}.${pad(c.position)}`;
 }
 
-function showContext(s) {
+function showContext(s: Session): void {
   console.table({
-    bot: `${s.me.username} (${s.me.id})`,
+    bot: `${s.me!.username} (${s.me!.id})`,
     profile: s.profile ?? '(ad hoc)',
     server: s.guild ? `${s.guild.name} (${s.guild.id})` : '(none)',
     operator: s.operator,
