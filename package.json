@@ -22,6 +22,8 @@
     "lint": "pnpm typecheck && eslint . && prettier --check .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "validate": "pnpm lint && pnpm test && pnpm build",
+    "act": "bash scripts/run-act.sh",
     "dev": "tsx bin/dcsh.ts",
     "prepare": "husky",
     "prepublishOnly": "pnpm build"

@@ -21,12 +21,16 @@ dcsh is written in TypeScript (ESM) and built with `tsc` to `dist/`; the `dcsh` 
 ```
 pnpm dev            # run the shell straight from source via tsx
 pnpm test           # run the vitest suite
-pnpm lint           # eslint + prettier --check
+pnpm lint           # tsc (incl. tests) + eslint + prettier --check
 pnpm build          # compile to dist/
-pnpm typecheck      # tsc --noEmit
+pnpm typecheck      # type-check sources and tests (tsconfig.test.json)
+pnpm validate       # the full CI gate: lint + test + build
+pnpm act            # run the CI workflow locally in Docker via nektos/act
 ```
 
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/); a husky `commit-msg` hook enforces this and `pre-commit` runs lint (plus a gitleaks secret scan where installed). Dependencies are kept current by the shared Arkanis Renovate preset, and CI runs the shared `ArkanisCorporation/ci` Node workflows (lint, test, build).
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/); a husky `commit-msg` hook enforces this, `pre-commit` runs lint (plus a gitleaks secret scan where installed), and `pre-push` runs the full `pnpm validate` gate. Dependencies are kept current by the shared Arkanis Renovate preset, and CI runs the shared `ArkanisCorporation/ci` Node workflows (lint, test, build).
+
+To reproduce CI exactly before pushing, `pnpm act` runs the `build` workflow in containers via [nektos/act](https://github.com/nektos/act). It needs Docker running and the [gh CLI](https://cli.github.com/) authenticated (or `GITHUB_TOKEN` set) so act can fetch the private `ArkanisCorporation/ci` reusable workflows; the pinned act binary is fetched and checksum-verified into `.act/` on first use.
 
 ## Token sources
 

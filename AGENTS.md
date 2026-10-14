@@ -15,12 +15,13 @@ read-only mode, no raw client).
 - **Package manager:** pnpm. Run `pnpm install` after cloning.
 - **Build:** `pnpm build` (`tsc` -> `dist/`). The `dcsh` bin points at `dist/bin/dcsh.js`. `pnpm dev` runs source directly via `tsx`.
 - **Tests:** `pnpm test` (vitest). Tests live in `tests/`, cover the pure and guard logic (config parsing, token precedence, the mutation guard, statement parsing).
-- **Lint/format:** `pnpm lint` (eslint + prettier --check), `pnpm format` (prettier --write). Prettier is the formatting authority; the `.editorconfig` is a minimal editor baseline only.
+- **Lint/format:** `pnpm lint` (`tsc` type-check incl. tests via `tsconfig.test.json`, then eslint + prettier --check), `pnpm format` (prettier --write). Prettier is the formatting authority; the `.editorconfig` is a minimal editor baseline only.
+- **Local CI:** `pnpm validate` runs the full gate (lint + test + build) and is what the `pre-push` hook runs. `pnpm act` runs the actual `build` workflow in Docker via [nektos/act](https://github.com/nektos/act) for full fidelity (incl. the actionlint job); it needs Docker running and a GitHub token (gh CLI auth or `GITHUB_TOKEN`) to fetch the private `ArkanisCorporation/ci` reusable workflows. The pinned act binary is checksum-verified into `.act/` by `scripts/get-act.sh`.
 
 ## Conventions
 
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/), enforced by a husky `commit-msg` hook. Use `ci:`/`chore:`/`docs:` for non-shipping changes; reserve `feat:`/`fix:` for release-worthy changes.
-- **Pre-commit:** runs `pnpm lint` and, where `gitleaks` is installed, a staged secret scan.
+- **Pre-commit:** runs `pnpm lint` and, where `gitleaks` is installed, a staged secret scan. **Pre-push:** runs `pnpm validate` (the full CI gate) before a push leaves the machine.
 - **Dependencies:** managed by the shared Arkanis Renovate preset (`renovate.json5`).
 - **CI:** `.github/workflows/build.yml` consumes the shared `ArkanisCorporation/ci` reusable Node workflows (lint, test, build) plus GitHub Actions linting.
 
