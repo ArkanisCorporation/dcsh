@@ -3,7 +3,7 @@
 A mongosh-style REPL that acts as a bot account over the Discord REST API (v10). It never connects to the gateway, so it can't interfere with the running bot's session. It does share that bot's rate-limit buckets.
 
 ```
-npm install && npm link        # Node >= 20.6
+pnpm install && pnpm build && pnpm link --global   # Node >= 22
 dcsh -p arkanis-main
 arkanis-main> show servers
 arkanis-main> use Arkanis
@@ -13,6 +13,24 @@ arkanis-main/Arkanis> await api.delete(Routes.channel('1234567890123456789'))
 ```
 
 Type `help` in the shell for the full statement list.
+
+## Development
+
+dcsh is written in TypeScript (ESM) and built with `tsc` to `dist/`; the `dcsh` bin runs the compiled output.
+
+```
+pnpm dev            # run the shell straight from source via tsx
+pnpm test           # run the vitest suite
+pnpm lint           # tsc (incl. tests) + eslint + prettier --check
+pnpm build          # compile to dist/
+pnpm typecheck      # type-check sources and tests (tsconfig.test.json)
+pnpm validate       # the full CI gate: lint + test + build
+pnpm act            # run the CI workflow locally in Docker via nektos/act
+```
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/); a husky `commit-msg` hook enforces this, `pre-commit` runs lint (plus a gitleaks secret scan where installed), and `pre-push` runs the full `pnpm validate` gate. Dependencies are kept current by the shared Arkanis Renovate preset, and CI runs the shared `ArkanisCorporation/ci` Node workflows (lint, test, build).
+
+To reproduce CI exactly before pushing, `pnpm act` runs the `build` workflow in containers via [nektos/act](https://github.com/nektos/act). It needs Docker running and the [gh CLI](https://cli.github.com/) authenticated (or `GITHUB_TOKEN` set) so act can fetch the private `ArkanisCorporation/ci` reusable workflows; the pinned act binary is fetched and checksum-verified into `.act/` on first use.
 
 ## Token sources
 
@@ -26,36 +44,24 @@ The config file lives at `$XDG_CONFIG_HOME/dcsh/config.json` (Windows: `%APPDATA
 
 ```json
 {
-    "defaultProfile": "arkanis-main",
-    "operator": "delta",
-    "profiles": {
-        "arkanis-main": {
-            "token": {
-                "command": [
-                    "vault",
-                    "kv",
-                    "get",
-                    "-field=token",
-                    "secret/arkanis/discord/main-bot"
-                ]
-            },
-            "defaultGuild": "123456789012345678"
-        },
-        "medrunner-prod": {
-            "token": {
-                "command": [
-                    "vault",
-                    "kv",
-                    "get",
-                    "-field=token",
-                    "secret/medrunner/discord/bot"
-                ]
-            },
-            "readOnly": true
-        },
-        "local-test": { "token": { "file": "~/.secrets/dcsh-test.token" } },
-        "adhoc": { "token": { "env": "BOT_TOKEN" } }
-    }
+  "defaultProfile": "arkanis-main",
+  "operator": "delta",
+  "profiles": {
+    "arkanis-main": {
+      "token": {
+        "command": ["vault", "kv", "get", "-field=token", "secret/arkanis/discord/main-bot"]
+      },
+      "defaultGuild": "123456789012345678"
+    },
+    "medrunner-prod": {
+      "token": {
+        "command": ["vault", "kv", "get", "-field=token", "secret/medrunner/discord/bot"]
+      },
+      "readOnly": true
+    },
+    "local-test": { "token": { "file": "~/.secrets/dcsh-test.token" } },
+    "adhoc": { "token": { "env": "BOT_TOKEN" } }
+  }
 }
 ```
 

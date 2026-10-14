@@ -1,1 +1,8 @@
 node_modules/
+dist/
+*.tsbuildinfo
+.superpowers/
+.act/
+# Injected by the shared CI reusable workflows at run time.
+.ci/
+artifacts/

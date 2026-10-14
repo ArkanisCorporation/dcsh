@@ -3,10 +3,51 @@
   "version": "0.1.0",
   "description": "Discord REST shell: a mongosh-style REPL acting as a bot account",
   "type": "module",
-  "bin": { "dcsh": "bin/dcsh.js" },
-  "engines": { "node": ">=20.6" },
+  "bin": {
+    "dcsh": "dist/bin/dcsh.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.34.6",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "lint": "pnpm typecheck && eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "validate": "pnpm lint && pnpm test && pnpm build",
+    "act": "bash scripts/run-act.sh",
+    "dev": "tsx bin/dcsh.ts",
+    "prepare": "husky",
+    "prepublishOnly": "pnpm build"
+  },
   "dependencies": {
-    "@discordjs/rest": "^2.6.3",
-    "discord-api-types": "^0.38.56"
+    "@discordjs/rest": "2.6.3",
+    "discord-api-types": "0.38.56"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "19.6.1",
+    "@commitlint/config-conventional": "19.6.0",
+    "@eslint/js": "9.17.0",
+    "@types/node": "24.0.15",
+    "eslint": "9.17.0",
+    "husky": "9.1.7",
+    "prettier": "3.4.2",
+    "tsx": "4.20.3",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.19.1",
+    "vitest": "3.2.4"
   }
 }

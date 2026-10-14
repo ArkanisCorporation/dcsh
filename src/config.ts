@@ -3,17 +3,18 @@ import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
 import { execFileSync, execSync } from 'node:child_process';
 import readline from 'node:readline';
+import type { TokenSource, Config, Profile } from './types.js';
 
 const isWin = platform() === 'win32';
 
-export function configDir() {
+export function configDir(): string {
   if (process.env.DCSH_CONFIG_DIR) return process.env.DCSH_CONFIG_DIR;
   return isWin
     ? join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'dcsh')
     : join(process.env.XDG_CONFIG_HOME ?? join(homedir(), '.config'), 'dcsh');
 }
 
-export function stateDir() {
+export function stateDir(): string {
   const dir = isWin
     ? join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData', 'Local'), 'dcsh')
     : join(process.env.XDG_STATE_HOME ?? join(homedir(), '.local', 'state'), 'dcsh');
@@ -23,12 +24,12 @@ export function stateDir() {
 
 const SOURCE_KEYS = ['command', 'env', 'file', 'prompt'];
 
-export function loadConfig(path) {
+export function loadConfig(path?: string): Config {
   const p = path ?? join(configDir(), 'config.json');
   if (!existsSync(p)) return { path: p, profiles: {} };
   const raw = JSON.parse(readFileSync(p, 'utf8'));
-  const profiles = raw.profiles ?? {};
-  for (const [name, prof] of Object.entries(profiles)) {
+  const profiles: Record<string, Profile> = raw.profiles ?? {};
+  for (const [name, prof] of Object.entries<Profile>(profiles)) {
     const t = prof.token;
     if (typeof t !== 'object' || t === null || !SOURCE_KEYS.some((k) => k in t)) {
       throw new Error(
@@ -43,37 +44,41 @@ export function loadConfig(path) {
  * Builds the token source from CLI flags, the selected profile, or the environment.
  * Precedence: explicit --token-* flag > profile > $DISCORD_TOKEN > interactive prompt.
  */
-export function pickTokenSource(flags, profile) {
-  if (flags['token-cmd']) return { command: flags['token-cmd'] };
-  if (flags['token-env']) return { env: flags['token-env'] };
-  if (flags['token-file']) return { file: flags['token-file'] };
+export function pickTokenSource(flags: Record<string, unknown>, profile?: Profile | null): TokenSource {
+  if (flags['token-cmd']) return { command: flags['token-cmd'] as string };
+  if (flags['token-env']) return { env: flags['token-env'] as string };
+  if (flags['token-file']) return { file: flags['token-file'] as string };
   if (flags['token-prompt']) return { prompt: true };
   if (profile?.token) return profile.token;
   if (process.env.DISCORD_TOKEN) return { env: 'DISCORD_TOKEN' };
   return { prompt: true };
 }
 
-export function describeSource(src) {
-  if (src.command) return `command (${Array.isArray(src.command) ? src.command[0] : src.command.split(' ')[0]} ...)`;
-  if (src.env) return `env $${src.env}`;
-  if (src.file) return `file ${src.file}`;
+export function describeSource(src: TokenSource): string {
+  if ('command' in src)
+    return `command (${Array.isArray(src.command) ? src.command[0] : src.command.split(' ')[0]} ...)`;
+  if ('env' in src) return `env $${src.env}`;
+  if ('file' in src) return `file ${src.file}`;
   return 'interactive prompt';
 }
 
-export async function resolveToken(src, { allowPrompt = true } = {}) {
-  if (src.command) {
-    const opts = { encoding: 'utf8', stdio: ['inherit', 'pipe', 'inherit'] };
+export async function resolveToken(
+  src: TokenSource,
+  { allowPrompt = true }: { allowPrompt?: boolean } = {},
+): Promise<string> {
+  if ('command' in src) {
     const out = Array.isArray(src.command)
-      ? execFileSync(src.command[0], src.command.slice(1), opts) // no shell: preferred
-      : execSync(src.command, opts);
+      ? // no shell: preferred form
+        execFileSync(src.command[0]!, src.command.slice(1), { encoding: 'utf8', stdio: ['inherit', 'pipe', 'inherit'] })
+      : execSync(src.command, { encoding: 'utf8', stdio: ['inherit', 'pipe', 'inherit'] });
     return clean(out, describeSource(src));
   }
-  if (src.env) {
+  if ('env' in src) {
     const v = process.env[src.env];
     if (!v) throw new Error(`$${src.env} is not set`);
     return clean(v, describeSource(src));
   }
-  if (src.file) {
+  if ('file' in src) {
     const p = resolve(src.file.replace(/^~(?=$|[\\/])/, homedir()));
     if (!isWin) {
       const mode = statSync(p).mode & 0o777;
@@ -81,27 +86,31 @@ export async function resolveToken(src, { allowPrompt = true } = {}) {
     }
     return clean(readFileSync(p, 'utf8'), describeSource(src));
   }
-  if (src.prompt) {
+  if ('prompt' in src) {
     if (!allowPrompt) throw new Error('interactive token prompt is only available at startup');
     return clean(await promptHidden('Bot token: '), 'prompt');
   }
   throw new Error('no usable token source');
 }
 
-function clean(value, from) {
+function clean(value: string, from: string): string {
   let t = String(value).trim();
   if (t.startsWith('Bot ')) t = t.slice(4);
   if (!t || /\s/.test(t)) throw new Error(`token from ${from} is empty or malformed`);
   return t;
 }
 
-function promptHidden(question) {
+function promptHidden(question: string): Promise<string> {
   return new Promise((res, rej) => {
     if (!process.stdin.isTTY) return rej(new Error('stdin is not a TTY; use another token source'));
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     let asked = false;
-    rl._writeToOutput = (s) => {
-      if (!asked) { process.stdout.write(s); asked = true; }
+    // @ts-expect-error private readline internal used to suppress the echoed prompt
+    rl._writeToOutput = (s: string) => {
+      if (!asked) {
+        process.stdout.write(s);
+        asked = true;
+      }
     };
     rl.question(question, (answer) => {
       rl.close();

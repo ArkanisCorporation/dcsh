@@ -1,0 +1,42 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  node-lint:
+    name: lint @ ${{ github.head_ref || github.ref_name }}
+    uses: ArkanisCorporation/ci/.github/workflows/wf-node-lint.yml@v1
+    permissions:
+      contents: read
+    with:
+      node-version: 24.x
+      package-manager: pnpm
+
+  node-test:
+    name: test @ ${{ github.head_ref || github.ref_name }}
+    uses: ArkanisCorporation/ci/.github/workflows/wf-node-test.yml@v1
+    permissions:
+      contents: read
+    with:
+      node-version: 24.x
+      package-manager: pnpm
+
+  node-build:
+    name: build @ ${{ github.head_ref || github.ref_name }}
+    uses: ArkanisCorporation/ci/.github/workflows/wf-node-build.yml@v1
+    permissions:
+      contents: read
+    with:
+      node-version: 24.x
+      package-manager: pnpm
+
+  actions-lint:
+    name: lint github actions
+    uses: ArkanisCorporation/ci/.github/workflows/wf-lint-github-actions.yml@v1
+    permissions:
+      contents: read

@@ -1,0 +1,3 @@
+# Run the CI gate (lint + test + build) before pushing, matching the build workflow's
+# node jobs. Assumes deps are installed; run `pnpm install` first on a fresh clone.
+pnpm validate

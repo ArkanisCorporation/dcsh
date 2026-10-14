@@ -1,0 +1,5 @@
+# Secret scan (restores the machine's gitleaks protection, skipped where gitleaks isn't installed).
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --no-banner || exit 1
+fi
+pnpm lint
