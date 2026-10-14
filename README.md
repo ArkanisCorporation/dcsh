@@ -1,6 +1,6 @@
 # dcsh: Discord REST shell
 
-[![npm](https://img.shields.io/npm/v/dcsh)](https://www.npmjs.com/package/dcsh)
+[![npm](https://img.shields.io/npm/v/@arkanis-corporation/dcsh)](https://www.npmjs.com/package/@arkanis-corporation/dcsh)
 [![build](https://github.com/ArkanisCorporation/dcsh/actions/workflows/build.yml/badge.svg)](https://github.com/ArkanisCorporation/dcsh/actions/workflows/build.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -11,9 +11,9 @@ Website: **[dcsh.arkanis.space](https://dcsh.arkanis.space)**
 ## Install
 
 ```sh
-npm install -g dcsh     # then run `dcsh`
+npm install -g @arkanis-corporation/dcsh   # then run `dcsh`
 # or, without installing:
-npx dcsh --help
+npx @arkanis-corporation/dcsh --help
 ```
 
 Requires Node.js >= 22. You supply your own bot token; dcsh never ships or stores one (see [Token sources](#token-sources)).
