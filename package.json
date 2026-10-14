@@ -19,7 +19,7 @@
     "url": "git+https://github.com/ArkanisCorporation/dcsh.git"
   },
   "license": "MIT",
-  "author": "Arkanis Corporation and contributors",
+  "author": "Arkanis Corporation OÜ and contributors",
   "type": "module",
   "bin": {
     "dcsh": "dist/bin/dcsh.js"
