@@ -51,7 +51,7 @@ Commits follow [Conventional Commits](https://www.conventionalcommits.org/); a h
 
 ## Releases
 
-Releases are automated with [semantic-release](https://semantic-release.gitbook.io/) driven by the Conventional Commit history: merging a `feat:`/`fix:` to `main` computes the next version, updates the changelog, tags, cuts a GitHub release, and publishes to npm with provenance. The pipeline is dormant until the `RELEASE_ENABLED` repository variable is set and an `NPM_TOKEN` is configured, so nothing publishes by accident.
+Releases are automated with [semantic-release](https://semantic-release.gitbook.io/) driven by the Conventional Commit history: merging a `feat:`/`fix:` to `main` computes the next version, updates the changelog, tags, cuts a GitHub release, and publishes to npm via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no long-lived token) with provenance. The pipeline is dormant until the `RELEASE_ENABLED` repository variable is set, so nothing publishes by accident.
 
 ## Token sources
 

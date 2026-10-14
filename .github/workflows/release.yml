@@ -6,13 +6,14 @@
 #                      GitHub release. It does NOT publish to npm. Gated on the `RELEASE_ENABLED`
 #                      repository variable, so the whole pipeline is inert until you set it to
 #                      'true'.
-#   2. `publish-npm` - publishes the built package to npm with provenance, only when stage 1 cut a
-#                      new release. Runs in the `release` environment and needs the `NPM_TOKEN`
-#                      secret; until that exists, activate RELEASE_ENABLED to get tags/releases
-#                      without npm publishing.
+#   2. `publish-npm` - publishes the built package to npm via trusted publishing (OIDC), only when
+#                      stage 1 cut a new release. Runs in the `release` environment; there is no
+#                      NPM_TOKEN - npm exchanges the GitHub OIDC claim for a short-lived publish
+#                      token and auto-generates provenance. Requires a trusted publisher configured
+#                      on npmjs.org for this repo + workflow (release.yml) + environment (release).
 #
-# To activate: set repo variable RELEASE_ENABLED=true, add the NPM_TOKEN secret to a `release`
-# environment, then merge a feat:/fix: commit to main. See CONTRIBUTING.md / README.
+# To activate: configure the trusted publisher on npm (one-time), set repo variable
+# RELEASE_ENABLED=true, then merge a feat:/fix: commit to main. See CONTRIBUTING.md / README.
 
 name: release
 
@@ -46,7 +47,7 @@ jobs:
     environment: release
     permissions:
       contents: read
-      id-token: write # required for npm publish --provenance
+      id-token: write # required for trusted publishing (OIDC token exchange + provenance)
     steps:
       - name: Checkout released tag
         uses: actions/checkout@v7
@@ -69,7 +70,12 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Publish to npm
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Trusted publishing (OIDC) requires npm >= 11.5.1; upgrade regardless of the bundled version.
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
+
+      # No NODE_AUTH_TOKEN: with id-token: write, npm exchanges the GitHub OIDC claim for a
+      # short-lived publish token and attaches provenance automatically (publishConfig.provenance).
+      # The trusted publisher on npmjs.org must name this repo + release.yml + the `release` env.
+      - name: Publish to npm (trusted publishing)
+        run: npm publish --access public
