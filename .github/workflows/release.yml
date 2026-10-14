@@ -1,16 +1,20 @@
 # Release pipeline for dcsh.
 #
-# Two stages, both dormant until deliberately activated:
-#   1. `release`     - semantic-release (shared Arkanis workflow) computes the next version from
+# Three jobs, all dormant until deliberately activated:
+#   1. `release`       - semantic-release (shared Arkanis workflow) computes the next version from
 #                      Conventional Commits, updates CHANGELOG + package.json, tags, and cuts a
 #                      GitHub release. It does NOT publish to npm. Gated on the `RELEASE_ENABLED`
 #                      repository variable, so the whole pipeline is inert until you set it to
 #                      'true'.
-#   2. `publish-npm` - publishes the built package to npm via trusted publishing (OIDC), only when
-#                      stage 1 cut a new release. Runs in the `release` environment; there is no
-#                      NPM_TOKEN - npm exchanges the GitHub OIDC claim for a short-lived publish
-#                      token and auto-generates provenance. Requires a trusted publisher configured
-#                      on npmjs.org for this repo + workflow (release.yml) + environment (release).
+#   2. `build-package` - checks out the released tag, installs deps and builds, then packs the npm
+#                      tarball as an artifact. Has NO id-token, so untrusted dependency lifecycle
+#                      scripts that run here cannot reach the publish credential.
+#   3. `publish-npm`   - downloads that tarball and publishes it via trusted publishing (OIDC): no
+#                      NPM_TOKEN - npm exchanges the GitHub OIDC claim for a short-lived token and
+#                      auto-generates provenance. Runs in the `release` environment and executes no
+#                      build/dependency scripts (publishing a packed tarball skips npm lifecycle
+#                      scripts), keeping the id-token job free of untrusted code. Requires a trusted
+#                      publisher on npmjs.org for this repo + release.yml + the `release` env.
 #
 # To activate: configure the trusted publisher on npm (one-time), set repo variable
 # RELEASE_ENABLED=true, then merge a feat:/fix: commit to main. See CONTRIBUTING.md / README.
@@ -39,15 +43,13 @@ jobs:
         @semantic-release/changelog@6.0.3
         @semantic-release/git@10.0.1
 
-  publish-npm:
-    name: publish to npm
+  build-package:
+    name: build package tarball
     needs: release
     if: ${{ needs.release.outputs.release-published == 'true' }}
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: read
-      id-token: write # required for trusted publishing (OIDC token exchange + provenance)
     steps:
       - name: Checkout released tag
         uses: actions/checkout@v7
@@ -59,7 +61,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 24.x
-          registry-url: https://registry.npmjs.org
 
       - name: Enable Corepack (pnpm from packageManager)
         run: corepack enable
@@ -70,12 +71,44 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # Trusted publishing (OIDC) requires npm >= 11.5.1; upgrade regardless of the bundled version.
-      - name: Ensure npm supports trusted publishing
-        run: npm install -g npm@latest
+      - name: Pack npm tarball
+        run: npm pack --pack-destination ./artifact
 
-      # No NODE_AUTH_TOKEN: with id-token: write, npm exchanges the GitHub OIDC claim for a
-      # short-lived publish token and attaches provenance automatically (publishConfig.provenance).
-      # The trusted publisher on npmjs.org must name this repo + release.yml + the `release` env.
+      - name: Upload package tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: artifact/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-npm:
+    name: publish to npm
+    needs: build-package
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # trusted publishing (OIDC exchange + provenance); no build runs in this job
+    steps:
+      - name: Download package tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: artifact
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          registry-url: https://registry.npmjs.org
+
+      # Pin npm to an exact, known-good version (>= 11.5.1 for trusted publishing); bump via PR.
+      - name: Pin npm for trusted publishing
+        run: npm install -g npm@11.5.1
+
+      # Publishing a pre-packed tarball runs no install/prepare/prepublishOnly lifecycle scripts, so
+      # no untrusted dependency code executes in this OIDC-privileged job. Provenance is derived from
+      # the GitHub Actions OIDC context (publishConfig.provenance); no NODE_AUTH_TOKEN needed.
       - name: Publish to npm (trusted publishing)
-        run: npm publish --access public
+        run: npm publish artifact/*.tgz --access public
