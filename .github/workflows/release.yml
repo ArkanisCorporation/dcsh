@@ -3,11 +3,11 @@
 # Three jobs, all dormant until deliberately activated:
 #   1. `release`       - semantic-release (shared Arkanis workflow) computes the next version from
 #                      Conventional Commits, updates CHANGELOG + package.json, tags, and cuts a
-#                      GitHub release. It does NOT publish to npm. Gated on the `RELEASE_ENABLED`
-#                      repository variable, so the whole pipeline is inert until you set it to
-#                      'true'.
-#   2. `build-package` - checks out the released tag, installs deps and builds, then packs the npm
-#                      tarball as an artifact. Has NO id-token, so untrusted dependency lifecycle
+#                      GitHub release. It does NOT publish to npm. Runs only on push to main, gated
+#                      on the `RELEASE_ENABLED` repository variable, so the pipeline is inert until
+#                      you set it to 'true'.
+#   2. `build-package` - checks out the tag being released, installs deps and builds, then packs the
+#                      npm tarball as an artifact. Has NO id-token, so untrusted dependency lifecycle
 #                      scripts that run here cannot reach the publish credential.
 #   3. `publish-npm`   - downloads that tarball and publishes it via trusted publishing (OIDC): no
 #                      NPM_TOKEN - npm exchanges the GitHub OIDC claim for a short-lived token and
@@ -15,6 +15,11 @@
 #                      build/dependency scripts (publishing a packed tarball skips npm lifecycle
 #                      scripts), keeping the id-token job free of untrusted code. Requires a trusted
 #                      publisher on npmjs.org for this repo + release.yml + the `release` env.
+#
+# Manual recovery: if semantic-release cut a version/tag but the npm publish failed, re-publish that
+# existing tag WITHOUT re-cutting it - run this workflow from the Actions "Run workflow" button
+# (workflow_dispatch) and pass the tag (e.g. v0.2.0). The `release` job is skipped; `build-package`
+# and `publish-npm` run for that tag.
 #
 # To activate: configure the trusted publisher on npm (one-time), set repo variable
 # RELEASE_ENABLED=true, then merge a feat:/fix: commit to main. See CONTRIBUTING.md / README.
@@ -24,13 +29,19 @@ name: release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      publish_tag:
+        description: 'Existing git tag to build and publish via OIDC (recovery, e.g. v0.2.0)'
+        required: true
+        type: string
 
 permissions: {}
 
 jobs:
   release:
     name: semantic-release
-    if: ${{ vars.RELEASE_ENABLED == 'true' }}
+    if: ${{ github.event_name == 'push' && vars.RELEASE_ENABLED == 'true' }}
     uses: ArkanisCorporation/ci/.github/workflows/wf-release-semantic.yml@v1
     permissions:
       contents: write
@@ -46,15 +57,18 @@ jobs:
   build-package:
     name: build package tarball
     needs: release
-    if: ${{ needs.release.outputs.release-published == 'true' }}
+    # Push path: only when semantic-release actually cut a new version. Dispatch path: always, for
+    # the manual tag-recovery case (the release job is skipped, so always() is needed to run).
+    if: ${{ always() && (needs.release.outputs.release-published == 'true' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout released tag
+      - name: Checkout tag to publish
         uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release.outputs.new-tag }}
+          # Released tag on push; the dispatch input on manual recovery.
+          ref: ${{ github.event.inputs.publish_tag || needs.release.outputs.new-tag }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -71,8 +85,11 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # npm pack does not create the destination directory, so make it first.
       - name: Pack npm tarball
-        run: npm pack --pack-destination ./artifact
+        run: |
+          mkdir -p artifact
+          npm pack --pack-destination ./artifact
 
       - name: Upload package tarball
         uses: actions/upload-artifact@v4
