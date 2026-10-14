@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dcsh — Discord REST shell</title>
+    <meta
+      name="description"
+      content="Interactive REPL for troubleshooting Discord bots as the bot itself. REST-only, audit-logged, safe by default."
+    />
+    <meta property="og:title" content="dcsh — Discord REST shell" />
+    <meta
+      property="og:description"
+      content="Interactive REPL for troubleshooting Discord bots as the bot itself. REST-only, audit-logged, safe by default."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dcsh.arkanis.space/" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%AF%88</text></svg>"
+    />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --panel-2: #1c2230;
+        --border: #30363d;
+        --text: #e6edf3;
+        --muted: #b3bcc9;
+        --accent: #7c5cff;
+        --accent-text: #a78bfa;
+        --accent-2: #58a6ff;
+        --green: #3fb950;
+        --amber: #d29922;
+        --red: #f85149;
+        --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono",
+          monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 600px at 50% -10%, #1a2130 0%, var(--bg) 55%);
+        color: var(--text);
+        font-family: var(--sans);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent-2);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+      header {
+        text-align: center;
+        padding: 72px 20px 32px;
+      }
+      .logo {
+        font-family: var(--mono);
+        font-size: 15px;
+        color: var(--accent-text);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+      h1 {
+        font-size: clamp(2.2rem, 6vw, 3.4rem);
+        margin: 10px 0 8px;
+        letter-spacing: -0.02em;
+      }
+      .tagline {
+        font-size: clamp(1rem, 2.6vw, 1.3rem);
+        color: var(--muted);
+        margin: 0 auto;
+        max-width: 620px;
+      }
+      .cta {
+        margin-top: 28px;
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+      }
+      .btn.primary {
+        background: linear-gradient(180deg, var(--accent), #5a3ef0);
+        border-color: transparent;
+        color: #fff;
+      }
+      .btn:hover {
+        text-decoration: none;
+        border-color: var(--accent-2);
+      }
+      section {
+        padding: 28px 0;
+      }
+      h2 {
+        font-size: 1.35rem;
+        margin: 0 0 14px;
+      }
+      .terminal {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+      }
+      .terminal .bar {
+        display: flex;
+        gap: 8px;
+        padding: 12px 14px;
+        background: var(--panel-2);
+        border-bottom: 1px solid var(--border);
+      }
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .dot.r {
+        background: #ff5f56;
+      }
+      .dot.y {
+        background: #ffbd2e;
+      }
+      .dot.g {
+        background: #27c93f;
+      }
+      pre {
+        margin: 0;
+        padding: 18px 20px;
+        font-family: var(--mono);
+        font-size: 13.5px;
+        line-height: 1.7;
+        overflow-x: auto;
+        color: var(--text);
+      }
+      .c-dim {
+        color: var(--muted);
+      }
+      .c-prompt {
+        color: var(--accent-text);
+      }
+      .c-kw {
+        color: var(--accent-2);
+      }
+      .c-ok {
+        color: var(--green);
+      }
+      .install code,
+      .inline {
+        font-family: var(--mono);
+      }
+      .install .cmd {
+        display: block;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 8px 0;
+        font-family: var(--mono);
+        font-size: 14px;
+      }
+      .install .cmd::before {
+        content: "$ ";
+        color: var(--muted);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+      .card h3 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .note {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--amber);
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      footer {
+        text-align: center;
+        color: var(--muted);
+        padding: 40px 20px 60px;
+        border-top: 1px solid var(--border);
+        margin-top: 32px;
+        font-size: 0.9rem;
+      }
+      footer a {
+        margin: 0 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <div class="logo">Arkanis Corporation</div>
+        <h1>dcsh</h1>
+        <p class="tagline">
+          A mongosh-style REPL that drives the Discord REST API as your bot. REST-only,
+          audit-logged, and safe by default.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#install">Install</a>
+          <a class="btn" href="https://github.com/ArkanisCorporation/dcsh">GitHub</a>
+          <a class="btn" href="https://www.npmjs.com/package/dcsh">npm</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section>
+        <div class="terminal">
+          <div class="bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          </div>
+          <pre><span class="c-dim"># connect as a bot profile from your config</span>
+<span class="c-prompt">$</span> dcsh -p arkanis-main
+arkanis-main<span class="c-prompt">&gt;</span> <span class="c-kw">show</span> servers
+arkanis-main<span class="c-prompt">&gt;</span> <span class="c-kw">use</span> Arkanis
+arkanis-main/Arkanis<span class="c-prompt">&gt;</span> <span class="c-kw">show</span> channels squad
+arkanis-main/Arkanis<span class="c-prompt">&gt;</span> <span class="c-kw">reason</span> orphaned VC after sync bug
+arkanis-main/Arkanis<span class="c-prompt">&gt;</span> <span class="c-kw">await</span> api.delete(Routes.channel(<span class="c-ok">'1234567890123456789'</span>))
+<span class="c-ok">✓</span> <span class="c-dim">deleted — audit reason: [dcsh:delta] orphaned VC after sync bug</span></pre>
+        </div>
+      </section>
+
+      <section id="install" class="install">
+        <h2>Install</h2>
+        <code class="cmd">npm install -g dcsh</code>
+        <p class="c-dim" style="margin: 6px 2px">then run <span class="inline">dcsh --help</span>. Or without installing:</p>
+        <code class="cmd">npx dcsh --help</code>
+        <p class="c-dim" style="margin: 10px 2px">Requires Node.js 22 or newer. You bring your own bot token — dcsh never ships one.</p>
+      </section>
+
+      <section>
+        <h2>Safe by default</h2>
+        <div class="cards">
+          <div class="card">
+            <span class="tag">audit log</span>
+            <h3>Every mutation needs a reason</h3>
+            <p>
+              POST/PUT/PATCH/DELETE require a reason, sent as <span class="inline">[dcsh:operator]</span>
+              so manual fixes are distinguishable from bot behaviour in the audit log.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">read-only</span>
+            <h3>Read-only mode</h3>
+            <p>
+              Set per profile or with <span class="inline">--read-only</span>. Blocks all mutations
+              and cannot be switched off mid-session.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">no gateway</span>
+            <h3>Never touches the gateway</h3>
+            <p>
+              dcsh only speaks REST, so it can't interfere with your running bot's session. It does
+              share its rate-limit buckets.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">no raw client</span>
+            <h3>Only the guarded API</h3>
+            <p>
+              The token stays out of shell history and logs, and only the guarded
+              <span class="inline">api</span> object is exposed — guarding against mistakes, not
+              against a hostile operator.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>What is it for?</h2>
+        <p class="c-dim">
+          When a bot leaves a channel orphaned, a role half-applied, or a message stuck, you often
+          need to act <em>as the bot</em> to clean up — with the bot's permissions, against the real
+          API. dcsh gives you an interactive shell for exactly that, with guard rails so a
+          troubleshooting session doesn't become a second incident.
+        </p>
+        <p style="margin-top: 14px">
+          <a href="https://github.com/ArkanisCorporation/dcsh#readme">Read the full documentation →</a>
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <div>
+          <a href="https://github.com/ArkanisCorporation/dcsh">GitHub</a> ·
+          <a href="https://www.npmjs.com/package/dcsh">npm</a> ·
+          <a href="https://github.com/ArkanisCorporation/dcsh/blob/main/LICENSE">MIT License</a>
+        </div>
+        <div style="margin-top: 10px">An Arkanis Corporation tool.</div>
+      </div>
+    </footer>
+  </body>
+</html>
