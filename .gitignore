@@ -6,3 +6,5 @@ dist/
 # Injected by the shared CI reusable workflows at run time.
 .ci/
 artifacts/
+# Local design-hook cache.
+.impeccable/
