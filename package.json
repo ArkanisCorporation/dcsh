@@ -16,10 +16,10 @@
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "lint": "eslint . && prettier --check .",
+    "lint": "pnpm typecheck && eslint . && prettier --check .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev": "tsx bin/dcsh.ts",
