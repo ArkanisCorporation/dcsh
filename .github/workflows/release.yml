@@ -1,0 +1,75 @@
+# Release pipeline for dcsh.
+#
+# Two stages, both dormant until deliberately activated:
+#   1. `release`     - semantic-release (shared Arkanis workflow) computes the next version from
+#                      Conventional Commits, updates CHANGELOG + package.json, tags, and cuts a
+#                      GitHub release. It does NOT publish to npm. Gated on the `RELEASE_ENABLED`
+#                      repository variable, so the whole pipeline is inert until you set it to
+#                      'true'.
+#   2. `publish-npm` - publishes the built package to npm with provenance, only when stage 1 cut a
+#                      new release. Runs in the `release` environment and needs the `NPM_TOKEN`
+#                      secret; until that exists, activate RELEASE_ENABLED to get tags/releases
+#                      without npm publishing.
+#
+# To activate: set repo variable RELEASE_ENABLED=true, add the NPM_TOKEN secret to a `release`
+# environment, then merge a feat:/fix: commit to main. See CONTRIBUTING.md / README.
+
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  release:
+    name: semantic-release
+    if: ${{ vars.RELEASE_ENABLED == 'true' }}
+    uses: ArkanisCorporation/ci/.github/workflows/wf-release-semantic.yml@v1
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    with:
+      node-version: 24.x
+      # Plugins not bundled with semantic-release core.
+      extra-plugins: |
+        @semantic-release/changelog@6.0.3
+        @semantic-release/git@10.0.1
+
+  publish-npm:
+    name: publish to npm
+    needs: release
+    if: ${{ needs.release.outputs.release-published == 'true' }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # required for npm publish --provenance
+    steps:
+      - name: Checkout released tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.new-tag }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable Corepack (pnpm from packageManager)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

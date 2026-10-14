@@ -1,9 +1,26 @@
 # dcsh: Discord REST shell
 
+[![npm](https://img.shields.io/npm/v/dcsh)](https://www.npmjs.com/package/dcsh)
+[![build](https://github.com/ArkanisCorporation/dcsh/actions/workflows/build.yml/badge.svg)](https://github.com/ArkanisCorporation/dcsh/actions/workflows/build.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A mongosh-style REPL that acts as a bot account over the Discord REST API (v10). It never connects to the gateway, so it can't interfere with the running bot's session. It does share that bot's rate-limit buckets.
 
+Website: **[dcsh.arkanis.space](https://dcsh.arkanis.space)**
+
+## Install
+
+```sh
+npm install -g dcsh     # then run `dcsh`
+# or, without installing:
+npx dcsh --help
 ```
-pnpm install && pnpm build && pnpm link --global   # Node >= 22
+
+Requires Node.js >= 22. You supply your own bot token; dcsh never ships or stores one (see [Token sources](#token-sources)).
+
+## Quick start
+
+```
 dcsh -p arkanis-main
 arkanis-main> show servers
 arkanis-main> use Arkanis
@@ -16,7 +33,7 @@ Type `help` in the shell for the full statement list.
 
 ## Development
 
-dcsh is written in TypeScript (ESM) and built with `tsc` to `dist/`; the `dcsh` bin runs the compiled output.
+dcsh is written in TypeScript (ESM) and built with `tsc` to `dist/`; the `dcsh` bin runs the compiled output. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
 
 ```
 pnpm dev            # run the shell straight from source via tsx
@@ -30,7 +47,11 @@ pnpm act            # run the CI workflow locally in Docker via nektos/act
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/); a husky `commit-msg` hook enforces this, `pre-commit` runs lint (plus a gitleaks secret scan where installed), and `pre-push` runs the full `pnpm validate` gate. Dependencies are kept current by the shared Arkanis Renovate preset, and CI runs the shared `ArkanisCorporation/ci` Node workflows (lint, test, build).
 
-To reproduce CI exactly before pushing, `pnpm act` runs the `build` workflow in containers via [nektos/act](https://github.com/nektos/act). It needs Docker running and the [gh CLI](https://cli.github.com/) authenticated (or `GITHUB_TOKEN` set) so act can fetch the private `ArkanisCorporation/ci` reusable workflows; the pinned act binary is fetched and checksum-verified into `.act/` on first use.
+`pnpm validate` is the universal gate - it reproduces exactly what CI checks, so it works for anyone with a plain `pnpm install`. The shared `ArkanisCorporation/ci` reusable workflows and the `pnpm act` runner are Arkanis-internal conveniences (act needs Docker and access to those private workflows); they are never required to contribute.
+
+## Releases
+
+Releases are automated with [semantic-release](https://semantic-release.gitbook.io/) driven by the Conventional Commit history: merging a `feat:`/`fix:` to `main` computes the next version, updates the changelog, tags, cuts a GitHub release, and publishes to npm with provenance. The pipeline is dormant until the `RELEASE_ENABLED` repository variable is set and an `NPM_TOKEN` is configured, so nothing publishes by accident.
 
 ## Token sources
 

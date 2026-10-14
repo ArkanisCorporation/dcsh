@@ -24,6 +24,8 @@ read-only mode, no raw client).
 - **Pre-commit:** runs `pnpm lint` and, where `gitleaks` is installed, a staged secret scan. **Pre-push:** runs `pnpm validate` (the full CI gate) before a push leaves the machine.
 - **Dependencies:** managed by the shared Arkanis Renovate preset (`renovate.json5`).
 - **CI:** `.github/workflows/build.yml` consumes the shared `ArkanisCorporation/ci` reusable Node workflows (lint, test, build) plus GitHub Actions linting.
+- **Release:** `.github/workflows/release.yml` runs semantic-release (`.releaserc.json`) on push to `main` - version/changelog/tag/GitHub-release, then an npm publish job with provenance. Dormant until the `RELEASE_ENABLED` repo variable is `true` and an `NPM_TOKEN` secret exists in the `release` environment.
+- **Pages:** `.github/workflows/pages.yml` deploys the static `site/` landing page to `dcsh.arkanis.space` (custom domain via `site/CNAME`).
 
 ## Layout
 

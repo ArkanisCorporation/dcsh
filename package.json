@@ -1,15 +1,38 @@
 {
   "name": "dcsh",
   "version": "0.1.0",
-  "description": "Discord REST shell: a mongosh-style REPL acting as a bot account",
+  "description": "Interactive REPL for troubleshooting Discord bots as the bot itself - REST-only, audit-logged, safe by default.",
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "discord-api",
+    "rest",
+    "repl",
+    "cli",
+    "mongosh",
+    "bot-tooling"
+  ],
+  "homepage": "https://dcsh.arkanis.space/",
+  "bugs": "https://github.com/ArkanisCorporation/dcsh/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArkanisCorporation/dcsh.git"
+  },
+  "license": "MIT",
+  "author": "Arkanis Corporation OÜ and contributors",
   "type": "module",
   "bin": {
     "dcsh": "dist/bin/dcsh.js"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=22"
   },
