@@ -132,5 +132,7 @@ jobs:
       # Publishing a pre-packed tarball runs no install/prepare/prepublishOnly lifecycle scripts, so
       # no untrusted dependency code executes in this OIDC-privileged job. Provenance is derived from
       # the GitHub Actions OIDC context (publishConfig.provenance); no NODE_AUTH_TOKEN needed.
+      # The ./ prefix is required: npm reads a bare `artifact/<file>.tgz` as a GitHub owner/repo
+      # shorthand (and tries to git-clone it); `./artifact/...` forces a local-file read.
       - name: Publish to npm (trusted publishing)
-        run: npm publish artifact/*.tgz --access public
+        run: npm publish ./artifact/*.tgz --access public
