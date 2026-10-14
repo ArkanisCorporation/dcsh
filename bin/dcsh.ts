@@ -8,6 +8,7 @@ import { loadConfig, pickTokenSource, describeSource, resolveToken, stateDir } f
 import { Session } from '../src/session.js';
 import { parse, dispatch, KEYWORDS, SHOW_TARGETS } from '../src/commands.js';
 import type { TokenSource } from '../src/types.js';
+import { readVersion } from '../src/version.js';
 
 const USAGE = `dcsh: Discord REST shell
 
@@ -23,6 +24,7 @@ Usage: dcsh [options]
       --operator <name>   name used in audit log reasons (default: OS username)
       --config <path>     config file (default: $XDG_CONFIG_HOME/dcsh/config.json)
   -h, --help
+  -v, --version           print version and exit
 
 With no token flag or profile: $DISCORD_TOKEN, then an interactive prompt.`;
 
@@ -38,11 +40,17 @@ const { values: flags } = parseArgs({
     operator: { type: 'string' },
     config: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
+    version: { type: 'boolean', short: 'v' },
   },
 });
 
 if (flags.help) {
   console.log(USAGE);
+  process.exit(0);
+}
+
+if (flags.version) {
+  console.log(readVersion());
   process.exit(0);
 }
 
