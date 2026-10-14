@@ -102,10 +102,11 @@ jobs:
   publish-npm:
     name: publish to npm
     needs: build-package
-    # Explicit result check: build-package runs via always(), and a skipped ancestor (the `release`
-    # job on the dispatch path) would otherwise propagate a skip to this job through the default
-    # success() condition. Gate directly on build-package instead.
-    if: ${{ needs.build-package.result == 'success' }}
+    # The skipped `release` ancestor (dispatch path) propagates a skip down the needs chain unless
+    # the job opts out with a status function. always() opts out of propagation; the result check
+    # then gates on build-package having actually succeeded. A bare result check is NOT enough - it
+    # still gets skip-propagated.
+    if: ${{ always() && needs.build-package.result == 'success' }}
     runs-on: ubuntu-latest
     environment: release
     permissions:
