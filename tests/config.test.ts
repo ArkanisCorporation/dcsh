@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadConfig, pickTokenSource, describeSource, resolveToken } from '../src/config.js';
+import { loadConfig, saveConfig, pickTokenSource, describeSource, resolveToken } from '../src/config.js';
 
 function writeConfig(obj: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), 'dcsh-'));
@@ -14,12 +14,12 @@ function writeConfig(obj: unknown): string {
 describe('loadConfig', () => {
   it('rejects a literal (string) token', () => {
     const p = writeConfig({ profiles: { a: { token: 'abc' } } });
-    expect(() => loadConfig(p)).toThrow(/Literal tokens are not supported|needs token/);
+    expect(() => loadConfig(p)).toThrow(/Literal tokens are not supported/);
   });
 
   it('rejects a profile whose token has no known source key', () => {
     const p = writeConfig({ profiles: { a: { token: { nope: 1 } } } });
-    expect(() => loadConfig(p)).toThrow(/needs token/);
+    expect(() => loadConfig(p)).toThrow(/token must be/);
   });
 
   it('accepts each valid source shape', () => {
@@ -34,8 +34,25 @@ describe('loadConfig', () => {
     expect(Object.keys(loadConfig(p).profiles)).toHaveLength(4);
   });
 
+  it('accepts a profile without a token (prompted at startup)', () => {
+    const p = writeConfig({ profiles: { a: { defaultGuild: '1' } } });
+    expect(loadConfig(p).profiles.a).toEqual({ defaultGuild: '1' });
+  });
+
   it('returns empty profiles when the file is absent', () => {
     expect(loadConfig('/does/not/exist.json').profiles).toEqual({});
+  });
+});
+
+describe('saveConfig', () => {
+  it('round-trips, drops the path key, keeps unknown keys, writes mode 600', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dcsh-'));
+    const path = join(dir, 'nested', 'config.json');
+    saveConfig({ path, operator: 'me', extra: 1, profiles: { a: { token: { env: 'T' } } } } as never);
+    const raw = JSON.parse(readFileSync(path, 'utf8'));
+    expect(raw).toEqual({ operator: 'me', extra: 1, profiles: { a: { token: { env: 'T' } } } });
+    expect(loadConfig(path).profiles.a).toEqual({ token: { env: 'T' } });
+    if (process.platform !== 'win32') expect(statSync(path).mode & 0o777).toBe(0o600);
   });
 });
 

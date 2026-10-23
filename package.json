@@ -34,7 +34,7 @@
     "provenance": true
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.13.0 || >=23.5.0"
   },
   "packageManager": "pnpm@10.34.7",
   "scripts": {
@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "@discordjs/rest": "2.6.3",
+    "@inquirer/prompts": "8.7.4",
     "discord-api-types": "0.38.56"
   },
   "pnpm": {

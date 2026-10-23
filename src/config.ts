@@ -1,6 +1,6 @@
-import { readFileSync, statSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, statSync, existsSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { execFileSync, execSync } from 'node:child_process';
 import readline from 'node:readline';
 import type { TokenSource, Config, Profile } from './types.js';
@@ -24,20 +24,45 @@ export function stateDir(): string {
 
 const SOURCE_KEYS = ['command', 'env', 'file', 'prompt'];
 
+export function defaultConfigPath(): string {
+  return join(configDir(), 'config.json');
+}
+
+/**
+ * Loads and validates the config. A missing file yields an empty config. A profile may omit
+ * `token`, in which case dcsh prompts for it at startup; a present token must be one of the
+ * source shapes - literal token strings are rejected so the config never holds a secret.
+ */
 export function loadConfig(path?: string): Config {
-  const p = path ?? join(configDir(), 'config.json');
+  const p = path ?? defaultConfigPath();
   if (!existsSync(p)) return { path: p, profiles: {} };
   const raw = JSON.parse(readFileSync(p, 'utf8'));
   const profiles: Record<string, Profile> = raw.profiles ?? {};
   for (const [name, prof] of Object.entries<Profile>(profiles)) {
     const t = prof.token;
+    if (t === undefined) continue;
     if (typeof t !== 'object' || t === null || !SOURCE_KEYS.some((k) => k in t)) {
       throw new Error(
-        `${p}: profile "${name}" needs token: { ${SOURCE_KEYS.join(' | ')} }. Literal tokens are not supported.`,
+        `${p}: profile "${name}" token must be { ${SOURCE_KEYS.join(' | ')} } or omitted. Literal tokens are not supported.`,
       );
     }
   }
   return { ...raw, path: p, profiles };
+}
+
+/**
+ * Writes the config back to `config.path`, preserving unknown top-level keys. The write goes to a
+ * temp file and is renamed into place so an interrupted save never leaves a truncated config.
+ * Mode 600: the config holds no secrets, but it does map out which secret stores to read.
+ */
+export function saveConfig(config: Config): void {
+  const { path, profiles, ...rest } = config;
+  // Human-edited file: settings first, profiles last, regardless of the order keys were set in.
+  const data = { defaultProfile: rest.defaultProfile, ...rest, profiles };
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
+  renameSync(tmp, path);
 }
 
 /**
