@@ -1,4 +1,13 @@
-import { readFileSync, statSync, existsSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import {
+  readFileSync,
+  statSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  renameSync,
+  realpathSync,
+  rmSync,
+} from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { execFileSync, execSync } from 'node:child_process';
@@ -59,10 +68,16 @@ export function saveConfig(config: Config): void {
   const { path, profiles, ...rest } = config;
   // Human-edited file: settings first, profiles last, regardless of the order keys were set in.
   const data = { defaultProfile: rest.defaultProfile, ...rest, profiles };
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
-  renameSync(tmp, path);
+  // Write through a symlink (stow/chezmoi-managed dotfiles) instead of replacing it.
+  const target = existsSync(path) ? realpathSync(path) : path;
+  mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+  const tmp = `${target}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
+    renameSync(tmp, target);
+  } finally {
+    rmSync(tmp, { force: true });
+  }
 }
 
 /**
@@ -74,7 +89,9 @@ export function pickTokenSource(flags: Record<string, unknown>, profile?: Profil
   if (flags['token-env']) return { env: flags['token-env'] as string };
   if (flags['token-file']) return { file: flags['token-file'] as string };
   if (flags['token-prompt']) return { prompt: true };
-  if (profile?.token) return profile.token;
+  // A selected profile without a token means "ask every time" - never silently borrow
+  // $DISCORD_TOKEN, which may belong to a different bot than the profile's name and guards imply.
+  if (profile) return profile.token ?? { prompt: true };
   if (process.env.DISCORD_TOKEN) return { env: 'DISCORD_TOKEN' };
   return { prompt: true };
 }

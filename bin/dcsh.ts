@@ -58,7 +58,10 @@ if (argv[0] === 'profile') {
       console.log(PROFILE_USAGE);
       process.exit(0);
     }
-    process.exit(await runProfileCommand(positionals[0], positionals[1], o));
+    const code = await runProfileCommand(positionals[0], positionals[1], o);
+    // stdout to a pipe is async on macOS/Windows: let `profile list | less` drain before exiting.
+    await new Promise<void>((done) => process.stdout.write('', () => done()));
+    process.exit(code);
   } catch (e) {
     failOrCancel(e);
   }

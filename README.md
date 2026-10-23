@@ -24,7 +24,7 @@ The first time you run plain `dcsh` in a terminal, it walks you through creating
 3. **An optional token check** against Discord. When the check succeeds, you pick the default server from a list.
 4. **Read-only mode**, and whether the profile is the default.
 
-The setup only starts for bare `dcsh` (no arguments), when no config file exists yet and stdin/stdout are a terminal. Any flag, such as `--token-env`, skips it.
+The setup only starts for bare `dcsh` (no arguments), when no config file exists yet and stdin/stdout are a terminal. Any flag, such as `--token-env`, skips it. Declining writes an empty config, so you are only asked once.
 
 ### Managing profiles
 
@@ -74,7 +74,7 @@ Releases are automated with [semantic-release](https://semantic-release.gitbook.
 
 ## Token sources
 
-Precedence: `--token-cmd` / `--token-env` / `--token-file` / `--token-prompt`, then the profile's `token`, then `$DISCORD_TOKEN`, then a hidden interactive prompt.
+Precedence: `--token-cmd` / `--token-env` / `--token-file` / `--token-prompt`, then the profile's `token` (a hidden interactive prompt if the profile stores none). With no profile selected: `$DISCORD_TOKEN`, then a hidden interactive prompt.
 
 There is deliberately no `--token <value>` flag. A token passed that way leaks into shell history and the process list. The config also rejects literal tokens.
 
@@ -112,7 +112,7 @@ A token source can take four forms:
 - `env` names an environment variable to read.
 - `prompt: true` asks for the token interactively. It only works at startup, not for an in-shell `profile` switch.
 
-`token` is optional. A profile without one behaves like `prompt: true`: dcsh uses `$DISCORD_TOKEN` if it is set and otherwise asks for the token at startup.
+`token` is optional. A profile without one behaves like `prompt: true`: dcsh asks for the token at startup. It does not fall back to `$DISCORD_TOKEN`, which may belong to a different bot.
 
 ### Credential templates
 

@@ -126,6 +126,48 @@ describe('profileWizard', () => {
   });
 });
 
+describe('profileWizard field guards', () => {
+  // Assembled at runtime so secret scanners don't flag a token-shaped literal in the repo.
+  const token = ['x'.repeat(26), 'y'.repeat(6), 'z'.repeat(30)].join('.');
+
+  it('refuses a pasted bot token in the command and file fields', async () => {
+    for (const template of ['command', 'file']) {
+      await expect(
+        profileWizard(empty(), undefined, { prompts: scripted([undefined, template, token]), log: quiet }),
+      ).rejects.toThrow(/looks like the bot token/);
+    }
+  });
+
+  it('`-` clears a stored default server and 1Password account', async () => {
+    const cfg: Config = {
+      ...empty(),
+      defaultProfile: 'p',
+      profiles: {
+        p: { token: { command: ['op', '--account', 'my.1password.com', 'read', 'op://v/i/f'] }, defaultGuild: 'G' },
+      },
+    };
+    const r = await profileWizard(cfg, 'p', {
+      prompts: scripted([undefined, undefined, undefined, '-', false, '-', false]),
+      log: quiet,
+    });
+    expect(r.profile).toEqual({ token: { command: ['op', 'read', 'op://v/i/f'] } });
+  });
+
+  it('keeps a stored default server the picker does not list', async () => {
+    const cfg: Config = {
+      ...empty(),
+      defaultProfile: 'p',
+      profiles: { p: { token: { env: 'T' }, defaultGuild: 'Old' } },
+    };
+    const r = await profileWizard(cfg, 'p', {
+      prompts: scripted([undefined, undefined, undefined, true, undefined, false]),
+      verify: okVerify,
+      log: quiet,
+    });
+    expect(r.profile.defaultGuild).toBe('Old');
+  });
+});
+
 describe('applyProfile / removeProfile', () => {
   const base: Config = { path: '/c', defaultProfile: 'a', profiles: { a: {}, b: { readOnly: true } } };
 
@@ -169,10 +211,29 @@ describe('runProfileCommand / runOnboarding (on disk)', () => {
     expect(read(p)).toEqual({ defaultProfile: 'default', profiles: { default: { token: { env: 'DISCORD_TOKEN' } } } });
   });
 
-  it('onboarding can be declined and writes nothing', async () => {
+  it('declining onboarding writes an empty config so it is not offered again', async () => {
     const p = tmpConfig();
     expect(await runOnboarding(p, { prompts: scripted([false]), log: quiet })).toBe(false);
-    expect(() => readFileSync(p)).toThrow();
+    expect(read(p)).toEqual({ profiles: {} });
+  });
+
+  it('`add <name>` pre-fills the name question', async () => {
+    const p = tmpConfig();
+    const prompts = scripted([undefined, 'prompt', false, '', false]);
+    await runProfileCommand('add', 'staging', { config: p }, { interactive: true, prompts, log: quiet });
+    expect(Object.keys(read(p).profiles)).toEqual(['staging']);
+  });
+
+  it('treats Object.prototype names as ordinary profile names', async () => {
+    const p = tmpConfig({ profiles: {} });
+    await expect(
+      runProfileCommand('edit', 'toString', { config: p }, { interactive: false, log: quiet }),
+    ).rejects.toThrow(/no profile named "toString"/);
+    const r = await profileWizard(empty(), undefined, {
+      prompts: scripted(['constructor', 'prompt', false, '', false]),
+      log: quiet,
+    });
+    expect(r.name).toBe('constructor');
   });
 
   it('remove -y works without a terminal and reassigns the default', async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, statSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, statSync, symlinkSync, lstatSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfig, saveConfig, pickTokenSource, describeSource, resolveToken } from '../src/config.js';
@@ -54,6 +54,18 @@ describe('saveConfig', () => {
     expect(loadConfig(path).profiles.a).toEqual({ token: { env: 'T' } });
     if (process.platform !== 'win32') expect(statSync(path).mode & 0o777).toBe(0o600);
   });
+
+  it.skipIf(process.platform === 'win32')('writes through a symlinked config and leaves no temp file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dcsh-'));
+    const real = join(dir, 'dotfiles-config.json');
+    const link = join(dir, 'config.json');
+    writeFileSync(real, '{"profiles":{}}');
+    symlinkSync(real, link);
+    saveConfig({ path: link, profiles: { a: {} } });
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(readFileSync(real, 'utf8')).profiles).toEqual({ a: {} });
+    expect(readdirSync(dir).sort()).toEqual(['config.json', 'dotfiles-config.json']);
+  });
 });
 
 describe('pickTokenSource precedence', () => {
@@ -66,6 +78,8 @@ describe('pickTokenSource precedence', () => {
     const prev = process.env.DISCORD_TOKEN;
     process.env.DISCORD_TOKEN = 'x';
     expect(pickTokenSource({}, null)).toEqual({ env: 'DISCORD_TOKEN' });
+    // a selected profile without a token prompts; it never borrows $DISCORD_TOKEN
+    expect(pickTokenSource({}, { defaultGuild: '1' })).toEqual({ prompt: true });
     delete process.env.DISCORD_TOKEN;
     expect(pickTokenSource({}, null)).toEqual({ prompt: true });
     if (prev !== undefined) process.env.DISCORD_TOKEN = prev;

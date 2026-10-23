@@ -13,6 +13,8 @@ import {
   OP_REFERENCE,
   OP_ACCOUNT,
   ENV_NAME,
+  TOKEN_PASTED,
+  looksLikeToken,
   onePasswordSource,
   parseOnePassword,
   normalizeOpAccount,
@@ -59,6 +61,8 @@ export interface WizardDeps {
   prompts?: Prompts;
   verify?: (src: TokenSource) => Promise<Verified>;
   log?: (line: string) => void;
+  /** Pre-fills the name question, e.g. from `dcsh profile add <name>`. */
+  suggestedName?: string;
 }
 
 export interface WizardResult {
@@ -81,10 +85,10 @@ export async function profileWizard(config: Config, editing?: string, deps: Wiza
 
   const name = await prompts.input({
     message: 'Profile name',
-    default: editing ?? (isFirst ? 'default' : undefined),
+    default: editing ?? deps.suggestedName ?? (isFirst ? 'default' : undefined),
     validate: (v) => {
       if (!PROFILE_NAME.test(v)) return 'letters, digits, `.`, `_`, `-`; must start with a letter or digit';
-      if (v !== editing && v in config.profiles) return `profile "${v}" already exists`;
+      if (v !== editing && Object.hasOwn(config.profiles, v)) return `profile "${v}" already exists`;
       return true;
     },
   });
@@ -105,6 +109,8 @@ export async function profileWizard(config: Config, editing?: string, deps: Wiza
       guilds = me.guilds;
     } catch (e) {
       log(`  check failed: ${(e as Error).message ?? e}`);
+      const hint = checkHint(token, e);
+      if (hint) log(`  hint: ${hint}`);
       log('  saving anyway; fix the credential later with `dcsh profile edit`.');
     }
   }
@@ -130,6 +136,19 @@ export async function profileWizard(config: Config, editing?: string, deps: Wiza
   else delete profile.readOnly;
 
   return { name, profile, makeDefault };
+}
+
+/** A next step for the common ways a token check fails, beyond the raw error. */
+function checkHint(token: TokenSource | undefined, err: unknown): string | undefined {
+  const code = (err as { code?: string }).code;
+  const status = (err as { status?: number }).status;
+  if (status === 401) return 'Discord rejected the token; reset it in the Developer Portal (Bot > Reset Token).';
+  if (parseOnePassword(token)) {
+    if (code === 'ENOENT') return 'install the 1Password CLI (`op`) and enable desktop app integration.';
+    return 'make sure 1Password is unlocked and the reference/account are right: try `op read <ref>` yourself.';
+  }
+  if (code === 'ENOENT') return 'the command or file was not found.';
+  return undefined;
 }
 
 /** Template menu + follow-up question. Returns undefined for "ask every time" (no stored token). */
@@ -159,25 +178,28 @@ async function askCredential(
       });
       // Optional, but recommended with several accounts: pins `op` to one account and lets a locked
       // account raise the desktop unlock prompt instead of failing.
-      const account = normalizeOpAccount(
-        await prompts.input({
-          message: '1Password account (e.g. my.1password.com, acme.1password.eu; Enter to skip)',
-          default: prevOp?.account,
-          validate: (v) => {
-            const a = normalizeOpAccount(v);
-            return (
-              a === '' || OP_ACCOUNT.test(a) || 'expected <name>.1password.com, .ca or .eu (see `op account list`)'
-            );
-          },
-        }),
-      );
-      return onePasswordSource(ref.trim(), account || undefined);
+      const accountAnswer = await prompts.input({
+        message: prevOp?.account
+          ? '1Password account (Enter to keep, - for none)'
+          : '1Password account (e.g. my.1password.com, acme.1password.eu; Enter to skip)',
+        default: prevOp?.account,
+        validate: (v) => {
+          const a = clearable(v);
+          return (
+            !a ||
+            OP_ACCOUNT.test(normalizeOpAccount(a)) ||
+            'expected <name>.1password.com, .ca or .eu (see `op account list`)'
+          );
+        },
+      });
+      const account = clearable(accountAnswer);
+      return onePasswordSource(ref.trim(), account ? normalizeOpAccount(account) : undefined);
     }
     case 'command': {
       const line = await prompts.input({
         message: 'Command that prints the token',
         default: prev ? commandLine(prev as { command: string | string[] }) : undefined,
-        validate: (v) => v.trim() !== '' || 'enter a command',
+        validate: (v) => (v.trim() === '' ? 'enter a command' : !looksLikeToken(v) || TOKEN_PASTED),
       });
       return commandSource(line);
     }
@@ -193,7 +215,7 @@ async function askCredential(
       const file = await prompts.input({
         message: 'Path to the token file',
         default: prev ? (prev as { file: string }).file : undefined,
-        validate: (v) => v.trim() !== '' || 'enter a path',
+        validate: (v) => (v.trim() === '' ? 'enter a path' : !looksLikeToken(v) || TOKEN_PASTED),
       });
       return { file: file.trim() };
     }
@@ -211,21 +233,34 @@ async function askDefaultGuild(
   current: string | undefined,
 ): Promise<string | undefined> {
   if (guilds && guilds.length > 0) {
+    // A stored default saved by name, or one the bot has since left, is not in the list; keep it
+    // selectable so accepting the defaults never drops it silently.
+    const keepCurrent = current && !guilds.some((g) => g.id === current);
     const choice = await prompts.select<string>({
       message: 'Default server to activate on start',
       choices: [
         { name: '(none)', value: NO_GUILD },
+        ...(keepCurrent ? [{ name: `${current} (current setting)`, value: current }] : []),
         ...guilds.map((g) => ({ name: `${g.name} (${g.id})`, value: g.id })),
       ],
-      default: current && guilds.some((g) => g.id === current) ? current : NO_GUILD,
+      default: current ?? NO_GUILD,
     });
     return choice || undefined;
   }
   const typed = await prompts.input({
-    message: 'Default server id or name (optional, Enter to skip)',
+    message: current
+      ? 'Default server id or name (Enter to keep, - for none)'
+      : 'Default server id or name (optional, Enter to skip)',
     default: current,
+    validate: (v) => !looksLikeToken(v) || TOKEN_PASTED,
   });
-  return typed.trim() || undefined;
+  return clearable(typed);
+}
+
+/** Free-text answers where `-` (or `none`) clears a pre-filled value. */
+function clearable(value: string): string | undefined {
+  const v = value.trim();
+  return v === '' || v === '-' || v.toLowerCase() === 'none' ? undefined : v;
 }
 
 function hasCommand(bin: string): boolean {
@@ -253,7 +288,7 @@ export function applyProfile(config: Config, result: WizardResult, previousName?
 
 /** Removes a profile. If it was the default, `nextDefault` (or nothing) takes its place. */
 export function removeProfile(config: Config, name: string, nextDefault?: string): Config {
-  if (!(name in config.profiles)) throw new Error(`no profile named "${name}"`);
+  if (!Object.hasOwn(config.profiles, name)) throw new Error(`no profile named "${name}"`);
   const profiles = Object.fromEntries(Object.entries(config.profiles).filter(([n]) => n !== name));
   const defaultProfile = config.defaultProfile === name ? nextDefault : config.defaultProfile;
   return withDefault({ ...config, profiles }, defaultProfile);
@@ -303,7 +338,7 @@ export async function runProfileCommand(
   };
   const pick = async (verb: string): Promise<string> => {
     if (name) {
-      if (!(name in config.profiles)) throw new Error(`no profile named "${name}" in ${config.path}`);
+      if (!Object.hasOwn(config.profiles, name)) throw new Error(`no profile named "${name}" in ${config.path}`);
       return name;
     }
     const names = Object.keys(config.profiles);
@@ -325,9 +360,9 @@ export async function runProfileCommand(
     }
     case 'add': {
       needTty();
-      if (name && name in config.profiles)
+      if (name && Object.hasOwn(config.profiles, name))
         throw new Error(`profile "${name}" already exists; use \`dcsh profile edit ${name}\``);
-      const result = await profileWizard(config, undefined, { ...deps, prompts, log });
+      const result = await profileWizard(config, undefined, { ...deps, prompts, log, suggestedName: name });
       saveConfig(applyProfile(config, result));
       log(`saved profile "${result.name}" to ${config.path}`);
       return 0;
@@ -378,7 +413,9 @@ export async function runOnboarding(configPath: string | undefined, deps: Wizard
   log("Welcome to dcsh. No config found, so let's set up your first bot profile.");
   log(`It will be saved to ${config.path}; manage profiles later with \`dcsh profile\`.\n`);
   if (!(await prompts.confirm({ message: 'Set up a profile now?', default: true }))) {
-    log('skipped; falling back to $DISCORD_TOKEN or a token prompt.\n');
+    // Persist the "no" as an empty config, so the next bare `dcsh` doesn't ask again.
+    saveConfig(config);
+    log('skipped; run `dcsh profile add` any time. Using $DISCORD_TOKEN or a token prompt for now.\n');
     return false;
   }
   const result = await profileWizard(config, undefined, { ...deps, prompts, log });

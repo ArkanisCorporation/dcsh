@@ -35,9 +35,24 @@ export const TEMPLATES: readonly CredentialTemplate[] = [
 
 /**
  * 1Password secret reference: `op://<vault>/<item>/[<section>/]<field>`. Vault and item may be
- * names or ids; whitespace is rejected because the reference is passed as a single argv entry.
+ * names or ids. Names may contain spaces ("Shared Vault"); that is safe because the reference is
+ * passed as a single argv entry, never through a shell. Segments must be non-blank.
  */
-export const OP_REFERENCE = /^op:\/\/[^/\s]+\/[^/\s]+\/[^/\s]+(?:\/[^/\s]+)?$/;
+export const OP_REFERENCE = /^op:\/\/[^/\n]*\S[^/\n]*\/[^/\n]*\S[^/\n]*\/[^/\n]*\S[^/\n]*(?:\/[^/\n]*\S[^/\n]*)?$/;
+
+/**
+ * Shape of a Discord bot token (three base64url segments). Used to catch the token itself being
+ * pasted into a field that would store it in the config, e.g. "Custom command" or "Token file".
+ */
+const DISCORD_TOKEN_SHAPE = /[\w-]{20,}\.[\w-]{5,}\.[\w-]{20,}/;
+
+export function looksLikeToken(value: string): boolean {
+  return DISCORD_TOKEN_SHAPE.test(value);
+}
+
+/** Validator message for fields where a pasted token would end up in the config. */
+export const TOKEN_PASTED =
+  'that looks like the bot token itself - dcsh never stores tokens; enter where to fetch it from instead';
 
 /** Name rule for `env` templates: a portable environment variable name. */
 export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -72,21 +87,28 @@ export function onePasswordSource(reference: string, account?: string): TokenSou
 
 // Anything a shell would interpret. Without these, splitting on whitespace is exactly what the
 // shell would have done, so the command can safely run without one (the config's preferred form).
-const SHELL_SYNTAX = /["'`$\\|&;<>(){}*?[\]~#!]/;
+// `%` covers cmd.exe variables; a leading `VAR=value` word is a shell env assignment.
+const SHELL_SYNTAX = /["'`$\\|&;<>(){}*?[\]~#!%]|^[A-Za-z_][A-Za-z0-9_]*=/;
 
 /**
  * Converts a typed command line into a `command` source: an argv array when it is plain words,
- * otherwise the string form, which runs through a shell.
+ * otherwise the string form, which runs through a shell. Always the string form on Windows, where
+ * `.cmd`/`.bat` wrappers (common for CLIs installed via npm or scoop) cannot be spawned as argv.
  */
-export function commandSource(line: string): TokenSource {
+export function commandSource(line: string, platform: NodeJS.Platform = process.platform): TokenSource {
   const trimmed = line.trim();
   if (!trimmed) throw new Error('command is empty');
-  return { command: SHELL_SYNTAX.test(trimmed) ? trimmed : trimmed.split(/\s+/) };
+  const shell = platform === 'win32' || SHELL_SYNTAX.test(trimmed);
+  return { command: shell ? trimmed : trimmed.split(/\s+/) };
 }
 
-/** Inverse of `commandSource`, for pre-filling the wizard when editing. */
+/**
+ * Inverse of `commandSource`, for pre-filling the wizard when editing. argv entries containing
+ * whitespace are quoted, so saving the line unchanged keeps them as one argument (via the shell).
+ */
 export function commandLine(src: { command: string | string[] }): string {
-  return Array.isArray(src.command) ? src.command.join(' ') : src.command;
+  if (!Array.isArray(src.command)) return src.command;
+  return src.command.map((a) => (/\s/.test(a) ? `'${a.replace(/'/g, `'\\''`)}'` : a)).join(' ');
 }
 
 /** Recognises which template a stored source came from. A missing token means "ask every time". */

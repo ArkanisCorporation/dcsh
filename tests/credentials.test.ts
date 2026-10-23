@@ -3,6 +3,7 @@ import {
   OP_REFERENCE,
   OP_ACCOUNT,
   normalizeOpAccount,
+  looksLikeToken,
   onePasswordSource,
   parseOnePassword,
   commandSource,
@@ -14,7 +15,9 @@ import {
 describe('1Password references', () => {
   it('accepts vault/item/field and vault/item/section/field', () => {
     expect(OP_REFERENCE.test('op://abc123/def456/credential')).toBe(true);
-    expect(OP_REFERENCE.test('op://Infra/Discord Bot/token')).toBe(false); // whitespace
+    expect(OP_REFERENCE.test('op://Shared Vault/Discord Bot/token')).toBe(true); // names with spaces
+    expect(OP_REFERENCE.test('op://v/ /token')).toBe(false); // blank segment
+    expect(OP_REFERENCE.test('op://v/i/f\nrm')).toBe(false);
     expect(OP_REFERENCE.test('op://Infra/bot/section/token')).toBe(true);
     expect(OP_REFERENCE.test('op://Infra/bot')).toBe(false);
     expect(OP_REFERENCE.test('vault/item/field')).toBe(false);
@@ -62,9 +65,25 @@ describe('commandSource', () => {
     expect(commandSource('cat $HOME/t')).toEqual({ command: 'cat $HOME/t' });
   });
 
+  it('uses the shell for env assignments, cmd.exe variables, and always on Windows', () => {
+    expect(commandSource('VAULT_ADDR=x vault kv get t')).toEqual({ command: 'VAULT_ADDR=x vault kv get t' });
+    expect(commandSource('type %USERPROFILE%\\t')).toHaveProperty('command', 'type %USERPROFILE%\\t');
+    expect(commandSource('vault kv get t', 'win32')).toEqual({ command: 'vault kv get t' });
+    expect(commandSource('vault kv get -field=token t')).toHaveProperty('command.length', 5);
+  });
+
   it('rejects an empty command and round-trips through commandLine', () => {
     expect(() => commandSource('   ')).toThrow(/empty/);
     expect(commandLine({ command: ['a', 'b'] })).toBe('a b');
+    // an argv entry with a space survives edit-and-save as one argument (via the shell form)
+    expect(commandLine({ command: ['secret-tool', 'lookup', 'my bot'] })).toBe("secret-tool lookup 'my bot'");
+    expect(commandSource(commandLine({ command: ['x', 'my bot'] }))).toEqual({ command: "x 'my bot'" });
+  });
+
+  it('recognises a pasted bot token', () => {
+    // Assembled at runtime so secret scanners don't flag a token-shaped literal in the repo.
+    expect(looksLikeToken(['x'.repeat(26), 'y'.repeat(6), 'z'.repeat(30)].join('.'))).toBe(true);
+    expect(looksLikeToken('vault kv get -field=token secret/bot')).toBe(false);
   });
 });
 
