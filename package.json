@@ -1,6 +1,6 @@
 {
   "name": "@arkanis-corporation/dcsh",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Interactive REPL for troubleshooting Discord bots as the bot itself - REST-only, audit-logged, safe by default.",
   "keywords": [
     "discord",
