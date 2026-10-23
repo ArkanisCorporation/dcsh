@@ -136,7 +136,9 @@ async function show(arg: string, session: Session, config: Config): Promise<unkn
         );
       } catch (err) {
         if ((err as { status?: number }).status === 403)
-          throw new Error('403: enable the GUILD_MEMBERS privileged intent for this bot');
+          throw new Error('403: enable the GUILD_MEMBERS privileged intent for this bot', {
+            cause: err,
+          });
         throw err;
       }
     }
