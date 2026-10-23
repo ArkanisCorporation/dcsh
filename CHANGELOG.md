@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/ArkanisCorporation/dcsh/compare/v0.3.0...v0.3.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** update dependency discord-api-types to v0.38.57 ([d6be909](https://github.com/ArkanisCorporation/dcsh/commit/d6be9094492c9274a8b8f4c5c55f15e8928b936e))
+
 # [0.3.0](https://github.com/ArkanisCorporation/dcsh/compare/v0.2.0...v0.3.0) (2026-10-23)
 
 
