@@ -15,8 +15,8 @@ importers:
         specifier: 8.7.4
         version: 8.7.4(@types/node@24.19.2)
       discord-api-types:
-        specifier: 0.38.56
-        version: 0.38.56
+        specifier: 0.38.57
+        version: 0.38.57
     devDependencies:
       '@commitlint/cli':
         specifier: 19.8.1
@@ -891,8 +891,8 @@ packages:
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
-  discord-api-types@0.38.56:
-    resolution: {integrity: sha512-Hti4RZsGvF5C7SM8rF2MDHtIm0Hyfrlk84GpEA29nj91tvVVMvX+oQSCodu10t2ZcjFGofq8TX0YyC04B2E69Q==}
+  discord-api-types@0.38.57:
+    resolution: {integrity: sha512-R1CTSSt4RshqCq23j2Xq2ZscvzB4LzG9OB1CYQdKUGdw8Ti/oF/72EEtK2mNpagG/Vj9NcBT7dw9lKLf+Dacfg==}
 
   dot-prop@5.3.0:
     resolution: {integrity: sha512-QM8q3zDe58hqUqjraQOmzZ1LIH9SWQJTlEKCH4kJ2oQvLZk7RbQXvtDM2XEq3fwkV9CCvvH4LA0AV+ogFsBM2Q==}
@@ -1673,14 +1673,14 @@ snapshots:
       '@sapphire/async-queue': 1.5.5
       '@sapphire/snowflake': 3.5.5
       '@vladfrangu/async_event_emitter': 2.4.7
-      discord-api-types: 0.38.56
+      discord-api-types: 0.38.57
       magic-bytes.js: 1.13.1
       tslib: 2.8.1
       undici: 6.29.0
 
   '@discordjs/util@1.2.0':
     dependencies:
-      discord-api-types: 0.38.56
+      discord-api-types: 0.38.57
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
@@ -2284,7 +2284,7 @@ snapshots:
 
   deep-is@0.1.4: {}
 
-  discord-api-types@0.38.56: {}
+  discord-api-types@0.38.57: {}
 
   dot-prop@5.3.0:
     dependencies:

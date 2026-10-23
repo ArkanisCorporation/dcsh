@@ -54,7 +54,7 @@
   "dependencies": {
     "@discordjs/rest": "2.6.3",
     "@inquirer/prompts": "8.7.4",
-    "discord-api-types": "0.38.56"
+    "discord-api-types": "0.38.57"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
