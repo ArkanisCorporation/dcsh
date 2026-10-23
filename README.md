@@ -8,15 +8,34 @@ A mongosh-style REPL that acts as a bot account over the Discord REST API (v10).
 
 Website: **[dcsh.arkanis.space](https://dcsh.arkanis.space)**
 
-## Install
+## Getting started
 
 ```sh
-npm install -g @arkanis-corporation/dcsh   # then run `dcsh`
-# or, without installing:
-npx @arkanis-corporation/dcsh --help
+npm install -g @arkanis-corporation/dcsh
+dcsh
 ```
 
-Requires Node.js >= 22. You supply your own bot token; dcsh never ships or stores one (see [Token sources](#token-sources)).
+Requires Node.js 22.13 or newer. You supply your own bot token; dcsh never ships or stores one (see [Token sources](#token-sources)).
+
+The first time you run plain `dcsh` in a terminal, it walks you through creating a bot profile and then drops you into the shell. It asks for:
+
+1. **A profile name** (`default` for the first one).
+2. **Where the token comes from:** 1Password, a custom command, an environment variable, a token file, or "ask every time". See [Credential templates](#credential-templates).
+3. **An optional token check** against Discord. When the check succeeds, you pick the default server from a list.
+4. **Read-only mode**, and whether the profile is the default.
+
+The setup only starts for bare `dcsh` (no arguments), when no config file exists yet and stdin/stdout are a terminal. Any flag, such as `--token-env`, skips it.
+
+### Managing profiles
+
+```sh
+dcsh profile list            # name, default, credential, default server, read-only
+dcsh profile add [name]      # same guided questions as the first run
+dcsh profile edit [name]     # answers pre-filled from the current profile; renames carry the default along
+dcsh profile remove [name]   # asks first (-y to skip); hands the default to another profile
+```
+
+Leave out `[name]` and dcsh lets you pick the profile from a list. `--config <path>` works here too.
 
 ## Quick start
 
@@ -61,7 +80,7 @@ There is deliberately no `--token <value>` flag. A token passed that way leaks i
 
 ## Config
 
-The config file lives at `$XDG_CONFIG_HOME/dcsh/config.json` (Windows: `%APPDATA%\dcsh\config.json`). Override the location with `$DCSH_CONFIG_DIR` or `--config`.
+dcsh writes this file for you (`dcsh profile ...`), with mode `600`; editing it by hand works too. The config file lives at `$XDG_CONFIG_HOME/dcsh/config.json` (Windows: `%APPDATA%\dcsh\config.json`). Override the location with `$DCSH_CONFIG_DIR` or `--config`.
 
 ```json
 {
@@ -92,6 +111,22 @@ A token source can take four forms:
 - `file` must be mode `600` on Unix.
 - `env` names an environment variable to read.
 - `prompt: true` asks for the token interactively. It only works at startup, not for an in-shell `profile` switch.
+
+`token` is optional. A profile without one behaves like `prompt: true`: dcsh uses `$DISCORD_TOKEN` if it is set and otherwise asks for the token at startup.
+
+### Credential templates
+
+`dcsh profile add` and the first-run setup build the `token` entry for you:
+
+| Template             | You enter                                        | Stored as                                                                            |
+| -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| 1Password            | a secret reference `op://<vault>/<item>/<field>` | `{ "command": ["op", "read", "op://..."] }`                                          |
+| Custom command       | a command line that prints the token             | `command` as an array; a string if it uses shell syntax (pipes, quotes, `$VAR`, ...) |
+| Environment variable | a variable name (default `DISCORD_TOKEN`)        | `{ "env": "..." }`                                                                   |
+| Token file           | a path                                           | `{ "file": "..." }`                                                                  |
+| Ask every time       | nothing                                          | no `token` key                                                                       |
+
+To get a 1Password secret reference, open the item, use the field's menu and choose **Copy Secret Reference**. The 1Password CLI (`op`) needs to be installed and signed in on the machine that runs dcsh.
 
 ## Guards
 

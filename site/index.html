@@ -185,6 +185,41 @@
         content: "$ ";
         color: var(--muted);
       }
+      .steps {
+        counter-reset: step;
+        list-style: none;
+        padding: 0;
+        margin: 0 0 18px;
+      }
+      .steps > li {
+        counter-increment: step;
+        position: relative;
+        padding-left: 40px;
+        margin: 0 0 18px;
+      }
+      .steps > li::before {
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--accent-text);
+      }
+      .steps h3 {
+        margin: 0 0 4px;
+        font-size: 1rem;
+      }
+      .steps p {
+        margin: 4px 0;
+      }
       .cards {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -247,7 +282,7 @@
           audit-logged, and safe by default.
         </p>
         <div class="cta">
-          <a class="btn primary" href="#install">Install</a>
+          <a class="btn primary" href="#get-started">Get started</a>
           <a class="btn" href="https://github.com/ArkanisCorporation/dcsh">GitHub</a>
           <a class="btn" href="https://www.npmjs.com/package/@arkanis-corporation/dcsh">npm</a>
         </div>
@@ -271,12 +306,96 @@ arkanis-main/Arkanis<span class="c-prompt">&gt;</span> <span class="c-kw">await<
         </div>
       </section>
 
-      <section id="install" class="install">
-        <h2>Install</h2>
-        <code class="cmd">npm install -g @arkanis-corporation/dcsh</code>
-        <p class="c-dim" style="margin: 6px 2px">then run <span class="inline">dcsh --help</span>. Or without installing:</p>
-        <code class="cmd">npx @arkanis-corporation/dcsh --help</code>
-        <p class="c-dim" style="margin: 10px 2px">Requires Node.js 22 or newer. You bring your own bot token — dcsh never ships one.</p>
+      <section id="get-started" class="install">
+        <h2>Get started</h2>
+        <ol class="steps">
+          <li>
+            <h3>Install</h3>
+            <code class="cmd">npm install -g @arkanis-corporation/dcsh</code>
+            <p class="c-dim">
+              Requires Node.js 22.13 or newer. Or try it without installing:
+              <span class="inline">npx @arkanis-corporation/dcsh</span>
+            </p>
+          </li>
+          <li>
+            <h3>Run it - dcsh walks you through setup</h3>
+            <code class="cmd">dcsh</code>
+            <p class="c-dim">
+              The first time you run it, dcsh asks a few questions and saves your first bot profile:
+              a name, where the bot token comes from, and optionally a default server and read-only
+              mode. It can check the token against Discord and let you pick the server from a list.
+              Then it drops you straight into the shell.
+            </p>
+          </li>
+          <li>
+            <h3>Manage profiles any time</h3>
+            <code class="cmd">dcsh profile list | add | edit | remove</code>
+            <p class="c-dim">
+              One profile per bot. <span class="inline">dcsh -p &lt;name&gt;</span> connects with a
+              specific one; <span class="inline">profile &lt;name&gt;</span> switches inside the shell.
+            </p>
+          </li>
+        </ol>
+
+        <div class="terminal">
+          <div class="bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          </div>
+          <pre><span class="c-prompt">$</span> dcsh
+Welcome to dcsh. No config found, so let's set up your first bot profile.
+<span class="c-ok">✔</span> Set up a profile now? <span class="c-kw">Yes</span>
+<span class="c-ok">✔</span> Profile name <span class="c-kw">default</span>
+<span class="c-ok">✔</span> Where does the bot token come from? <span class="c-kw">1Password</span>
+<span class="c-ok">✔</span> Secret reference (op://&lt;vault&gt;/&lt;item&gt;/&lt;field&gt;) <span class="c-kw">op://Infra/my-bot/credential</span>
+<span class="c-ok">✔</span> Check the token against Discord now? <span class="c-kw">Yes</span>
+  <span class="c-dim">ok: token belongs to bot my-bot, in 3 server(s)</span>
+<span class="c-ok">✔</span> Default server to activate on start <span class="c-kw">Arkanis (123456789012345678)</span>
+<span class="c-ok">✔</span> Read-only (block all mutating requests)? <span class="c-kw">No</span>
+
+saved profile "default". Starting the shell...
+connected as my-bot (234567890123456789) via 1Password op://Infra/my-bot/credential
+default/Arkanis<span class="c-prompt">&gt;</span></pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>Where the token comes from</h2>
+        <p class="c-dim" style="margin: 0 0 14px">
+          dcsh never stores a token in its config. A profile only says where to fetch it from at
+          startup, so the token stays in your secret store.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <span class="tag">1password</span>
+            <h3>1Password</h3>
+            <p>
+              Paste a secret reference (<span class="inline">op://vault/item/field</span>, via
+              "Copy Secret Reference" in 1Password). dcsh runs
+              <span class="inline">op read</span> on each start.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">command</span>
+            <h3>Custom command</h3>
+            <p>
+              Any command that prints the token: <span class="inline">vault kv get ...</span>,
+              <span class="inline">pass show ...</span>, <span class="inline">secret-tool lookup ...</span>.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">env / file</span>
+            <h3>Environment variable or file</h3>
+            <p>
+              Read from a variable such as <span class="inline">$DISCORD_TOKEN</span>, or from a file
+              that must be <span class="inline">chmod 600</span>.
+            </p>
+          </div>
+          <div class="card">
+            <span class="tag">prompt</span>
+            <h3>Ask every time</h3>
+            <p>Store nothing at all; dcsh asks for the token (hidden input) when it starts.</p>
+          </div>
+        </div>
       </section>
 
       <section>

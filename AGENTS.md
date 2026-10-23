@@ -11,10 +11,10 @@ read-only mode, no raw client).
 ## Toolchain
 
 - **Language:** TypeScript (ESM, NodeNext). Import specifiers keep the `.js` extension.
-- **Runtime:** Node >= 22 (CI runs 24.x).
+- **Runtime:** Node `^22.13 || >=23.5` (the floor of `@inquirer/prompts`; CI runs 24.x).
 - **Package manager:** pnpm. Run `pnpm install` after cloning.
 - **Build:** `pnpm build` (`tsc` -> `dist/`). The `dcsh` bin points at `dist/bin/dcsh.js`. `pnpm dev` runs source directly via `tsx`.
-- **Tests:** `pnpm test` (vitest). Tests live in `tests/`, cover the pure and guard logic (config parsing, token precedence, the mutation guard, statement parsing).
+- **Tests:** `pnpm test` (vitest). Tests live in `tests/`, cover the pure and guard logic (config parsing/saving, token precedence, the mutation guard, statement parsing, credential templates, and the profile wizard driven by scripted prompts).
 - **Lint/format:** `pnpm lint` (`tsc` type-check incl. tests via `tsconfig.test.json`, then eslint + prettier --check), `pnpm format` (prettier --write). Prettier is the formatting authority; the `.editorconfig` is a minimal editor baseline only.
 - **Local CI:** `pnpm validate` runs the full gate (lint + test + build) and is what the `pre-push` hook runs. `pnpm act` runs the actual `build` workflow in Docker via [nektos/act](https://github.com/nektos/act) for full fidelity (incl. the actionlint job); it needs Docker running and a GitHub token (gh CLI auth or `GITHUB_TOKEN`) to fetch the private `ArkanisCorporation/ci` reusable workflows. The pinned act binary is checksum-verified into `.act/` by `scripts/get-act.sh`.
 
@@ -30,16 +30,24 @@ read-only mode, no raw client).
 ## Layout
 
 ```
-bin/dcsh.ts      REPL entry: arg parsing, token resolution, eval/completer wiring
-src/config.ts    config file loading, token-source resolution
-src/session.ts   REST session + the guarded api (reason/read-only enforcement)
-src/commands.ts  statement grammar: parse() and dispatch()
-src/types.ts     shared types (TokenSource, Config, Statement, GuardedApi)
-tests/           vitest suites
+bin/dcsh.ts         entry: `profile` subcommand, first-run onboarding, arg parsing, REPL wiring
+src/config.ts       config file loading/saving, token-source resolution
+src/credentials.ts  credential templates (1Password, command, env, file, prompt) -> TokenSource
+src/profiles.ts     profile wizard (@inquirer/prompts), `dcsh profile` CRUD, first-run onboarding
+src/session.ts      REST session + the guarded api (reason/read-only enforcement)
+src/commands.ts     statement grammar: parse() and dispatch()
+src/types.ts        shared types (TokenSource, Config, Statement, GuardedApi)
+tests/              vitest suites
 ```
 
 The completer in `bin/dcsh.ts` and the grammar in `src/commands.ts` are kept as a deliberate seam
 for future richer completion (see the autosuggestions follow-up issue).
+
+## Onboarding and profiles
+
+- First-run setup triggers only for bare `dcsh` (no args) with no config file and an interactive stdin/stdout. Keep it that way: scripts and flag users must never hit a questionnaire.
+- The config never holds a literal token. Templates only produce existing `TokenSource` shapes; a profile without `token` means "prompt at startup". 1Password is stored as argv `["op", "read", "<ref>"]` (no shell).
+- The wizard takes injectable `prompts`/`verify`/`log`, so tests drive it without a TTY or token. Add new questions there and extend the scripted answers in `tests/profiles.test.ts`.
 
 ## Design rationale
 
