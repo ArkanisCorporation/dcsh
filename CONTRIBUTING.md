@@ -7,7 +7,7 @@ By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md
 
 ## Getting started
 
-`dcsh` is a TypeScript (ESM) CLI. You need **Node.js >= 22** and **pnpm**.
+`dcsh` is a TypeScript (ESM) CLI. You need **Node.js 22.13 or newer** and **pnpm**.
 
 ```sh
 git clone https://github.com/ArkanisCorporation/dcsh.git

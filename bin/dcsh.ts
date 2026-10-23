@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import repl from 'node:repl';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { userInfo } from 'node:os';
 import { parseArgs } from 'node:util';
 import { Routes, ChannelType, PermissionFlagsBits } from 'discord-api-types/v10';
-import { loadConfig, pickTokenSource, describeSource, resolveToken, stateDir } from '../src/config.js';
+import { loadConfig, pickTokenSource, resolveToken, stateDir, defaultConfigPath } from '../src/config.js';
+import { describeCredential } from '../src/credentials.js';
+import { runProfileCommand, runOnboarding, isInteractive, isPromptCancel, PROFILE_USAGE } from '../src/profiles.js';
 import { Session } from '../src/session.js';
 import { parse, dispatch, KEYWORDS, SHOW_TARGETS } from '../src/commands.js';
 import type { TokenSource } from '../src/types.js';
@@ -13,6 +16,7 @@ import { readVersion } from '../src/version.js';
 const USAGE = `dcsh: Discord REST shell
 
 Usage: dcsh [options]
+       dcsh profile list|add|edit|remove [name]   manage bot profiles (see dcsh profile --help)
 
   -p, --profile <name>    bot profile from config (default: config.defaultProfile)
   -g, --guild <id|name>   server to activate on start (default: profile.defaultGuild)
@@ -26,9 +30,55 @@ Usage: dcsh [options]
   -h, --help
   -v, --version           print version and exit
 
-With no token flag or profile: $DISCORD_TOKEN, then an interactive prompt.`;
+With no token flag or profile: $DISCORD_TOKEN, then an interactive prompt.
+Run plain \`dcsh\` in a terminal with no config file yet for a guided first-time setup.`;
+
+const fail = (err: unknown): never => {
+  console.error(`dcsh: ${formatError(err)}`);
+  process.exit(1);
+};
+// Ctrl+C inside a setup question: leave quietly instead of printing an error.
+const failOrCancel = (err: unknown): never => (isPromptCancel(err) ? process.exit(130) : fail(err));
+
+const argv = process.argv.slice(2);
+
+// `dcsh profile ...` is a one-shot subcommand: it never connects or starts the shell.
+if (argv[0] === 'profile') {
+  try {
+    const { values: o, positionals } = parseArgs({
+      args: argv.slice(1),
+      allowPositionals: true,
+      options: {
+        config: { type: 'string' },
+        yes: { type: 'boolean', short: 'y' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    });
+    if (o.help) {
+      console.log(PROFILE_USAGE);
+      process.exit(0);
+    }
+    const code = await runProfileCommand(positionals[0], positionals[1], o);
+    // stdout to a pipe is async on macOS/Windows: let `profile list | less` drain before exiting.
+    await new Promise<void>((done) => process.stdout.write('', () => done()));
+    process.exit(code);
+  } catch (e) {
+    failOrCancel(e);
+  }
+}
+
+// First run: bare `dcsh`, no config yet, a human at the keyboard -> guided profile setup. Any
+// argument (flags, a token source, --config) means the user already knows what they want.
+if (argv.length === 0 && !existsSync(defaultConfigPath()) && isInteractive()) {
+  try {
+    await runOnboarding(undefined);
+  } catch (e) {
+    failOrCancel(e);
+  }
+}
 
 const { values: flags } = parseArgs({
+  args: argv,
   options: {
     profile: { type: 'string', short: 'p' },
     guild: { type: 'string', short: 'g' },
@@ -54,10 +104,6 @@ if (flags.version) {
   process.exit(0);
 }
 
-const fail = (err: unknown): never => {
-  console.error(`dcsh: ${formatError(err)}`);
-  process.exit(1);
-};
 const config = (() => {
   try {
     return loadConfig(flags.config);
@@ -70,13 +116,16 @@ const session = new Session({ operator: flags.operator ?? config.operator ?? use
 async function activate(profileName: string | undefined, { atStartup }: { atStartup: boolean }): Promise<void> {
   const profile = profileName ? config.profiles[profileName] : null;
   if (profileName && !profile) throw new Error(`unknown profile "${profileName}" in ${config.path}`);
+  if (!atStartup && !profile!.token) {
+    throw new Error(`profile "${profileName}" has no stored token; start it with \`dcsh -p ${profileName}\``);
+  }
   const src: TokenSource = atStartup ? pickTokenSource(flags as Record<string, unknown>, profile) : profile!.token!;
   const token = await resolveToken(src, { allowPrompt: atStartup });
   await session.connect(token, {
     profile: profileName,
     readOnly: Boolean(profile?.readOnly || flags['read-only']),
   });
-  console.log(`connected as ${session.me!.username} (${session.me!.id}) via ${describeSource(src)}`);
+  console.log(`connected as ${session.me!.username} (${session.me!.id}) via ${describeCredential(src)}`);
   const guildRef = (atStartup && flags.guild) || profile?.defaultGuild;
   if (guildRef) {
     await session.use(guildRef);
