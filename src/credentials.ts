@@ -42,9 +42,32 @@ export const OP_REFERENCE = /^op:\/\/[^/\s]+\/[^/\s]+\/[^/\s]+(?:\/[^/\s]+)?$/;
 /** Name rule for `env` templates: a portable environment variable name. */
 export const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/**
+ * 1Password account sign-in address: `<subdomain>.1password.(com|ca|eu)`, e.g. `my.1password.com`
+ * or a team/business `acme.1password.eu`. Passed as `op --account`, which pins resolution to that
+ * account: without it `op` can pick the wrong one when several are signed in, or fail instead of
+ * raising the desktop app's unlock prompt when the target account is locked.
+ */
+export const OP_ACCOUNT = /^[a-z0-9][a-z0-9-]*\.1password\.(?:com|ca|eu)$/;
+
+/** Lenient input for the account question: tolerates case and a pasted URL (`https://x.1password.com/`). */
+export function normalizeOpAccount(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '');
+}
+
+/** A parsed 1Password source: the secret reference and the optional account scope. */
+export interface OnePasswordRef {
+  reference: string;
+  account?: string;
+}
+
 /** Builds the 1Password token source. argv form, so no shell is involved. */
-export function onePasswordSource(reference: string): TokenSource {
-  return { command: ['op', 'read', reference] };
+export function onePasswordSource(reference: string, account?: string): TokenSource {
+  return { command: account ? ['op', '--account', account, 'read', reference] : ['op', 'read', reference] };
 }
 
 // Anything a shell would interpret. Without these, splitting on whitespace is exactly what the
@@ -71,15 +94,26 @@ export function detectTemplate(src: TokenSource | undefined): TemplateId {
   if (!src || 'prompt' in src) return 'prompt';
   if ('env' in src) return 'env';
   if ('file' in src) return 'file';
-  const ref = onePasswordReference(src);
-  return ref ? '1password' : 'command';
+  return parseOnePassword(src) ? '1password' : 'command';
 }
 
-/** The op:// reference of a 1Password source, or undefined when `src` is not one. */
-export function onePasswordReference(src: TokenSource | undefined): string | undefined {
+/**
+ * Recognises exactly the argv shapes `onePasswordSource` produces - `op read <ref>` and
+ * `op --account <addr> read <ref>` - so anything hand-tuned stays a plain custom command.
+ */
+export function parseOnePassword(src: TokenSource | undefined): OnePasswordRef | undefined {
   if (!src || !('command' in src) || !Array.isArray(src.command)) return undefined;
-  const [bin, verb, ref, ...rest] = src.command;
-  return bin === 'op' && verb === 'read' && ref && rest.length === 0 && OP_REFERENCE.test(ref) ? ref : undefined;
+  const [bin, ...args] = src.command;
+  if (bin !== 'op') return undefined;
+  let account: string | undefined;
+  if (args[0] === '--account') {
+    account = args[1];
+    if (!account || !OP_ACCOUNT.test(account)) return undefined;
+    args.splice(0, 2);
+  }
+  const [verb, reference, ...rest] = args;
+  if (verb !== 'read' || !reference || rest.length > 0 || !OP_REFERENCE.test(reference)) return undefined;
+  return account ? { reference, account } : { reference };
 }
 
 /**
@@ -88,6 +122,7 @@ export function onePasswordReference(src: TokenSource | undefined): string | und
  */
 export function describeCredential(src: TokenSource | undefined): string {
   if (!src) return 'ask every time';
-  const ref = onePasswordReference(src);
-  return ref ? `1Password ${ref}` : describeSource(src);
+  const op = parseOnePassword(src);
+  if (!op) return describeSource(src);
+  return op.account ? `1Password ${op.reference} (${op.account})` : `1Password ${op.reference}`;
 }

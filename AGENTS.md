@@ -46,7 +46,7 @@ for future richer completion (see the autosuggestions follow-up issue).
 ## Onboarding and profiles
 
 - First-run setup triggers only for bare `dcsh` (no args) with no config file and an interactive stdin/stdout. Keep it that way: scripts and flag users must never hit a questionnaire.
-- The config never holds a literal token. Templates only produce existing `TokenSource` shapes; a profile without `token` means "prompt at startup". 1Password is stored as argv `["op", "read", "<ref>"]` (no shell).
+- The config never holds a literal token. Templates only produce existing `TokenSource` shapes; a profile without `token` means "prompt at startup". 1Password is stored as argv `["op", "read", "<ref>"]`, or `["op", "--account", "<addr>", "read", "<ref>"]` when account-scoped (no shell). `parseOnePassword` recognises only these two shapes, anything else edits as a custom command.
 - The wizard takes injectable `prompts`/`verify`/`log`, so tests drive it without a TTY or token. Add new questions there and extend the scripted answers in `tests/profiles.test.ts`.
 
 ## Design rationale

@@ -45,7 +45,7 @@ const okVerify = async (): Promise<Verified> => ({ username: 'bot', guilds: [{ i
 
 describe('profileWizard', () => {
   it('first profile: 1Password + verified server picker, becomes default without asking', async () => {
-    const prompts = scripted([undefined, '1password', 'op://vault/item/token', true, '111', false]);
+    const prompts = scripted([undefined, '1password', 'op://vault/item/token', '', true, '111', false]);
     const r = await profileWizard(empty(), undefined, { prompts, verify: okVerify, log: quiet });
     expect(r).toEqual({
       name: 'default',
@@ -53,6 +53,20 @@ describe('profileWizard', () => {
       makeDefault: true,
     });
     expect(prompts.asked).not.toContain('Make this the default profile?');
+  });
+
+  it('1Password with an account scope; edit pre-fills reference and account', async () => {
+    const answers = [undefined, '1password', 'op://v/i/f', 'https://Acme.1password.eu/', false, '', false];
+    const r = await profileWizard(empty(), undefined, { prompts: scripted(answers), log: quiet });
+    const token = { command: ['op', '--account', 'acme.1password.eu', 'read', 'op://v/i/f'] };
+    expect(r.profile.token).toEqual(token);
+
+    const cfg: Config = { ...empty(), defaultProfile: 'default', profiles: { default: { token } } };
+    const edited = await profileWizard(cfg, 'default', {
+      prompts: scripted([undefined, undefined, undefined, undefined, false, '', false]),
+      log: quiet,
+    });
+    expect(edited.profile.token).toEqual(token);
   });
 
   it('custom command, unverified, free-text server, read-only', async () => {

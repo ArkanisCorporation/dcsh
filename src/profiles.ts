@@ -11,9 +11,11 @@ import { Session } from './session.js';
 import {
   TEMPLATES,
   OP_REFERENCE,
+  OP_ACCOUNT,
   ENV_NAME,
   onePasswordSource,
-  onePasswordReference,
+  parseOnePassword,
+  normalizeOpAccount,
   commandSource,
   commandLine,
   detectTemplate,
@@ -147,14 +149,29 @@ async function askCredential(
   switch (template) {
     case '1password': {
       if (!hasCommand('op')) log('  note: `op` (1Password CLI) is not on PATH; install it before connecting.');
+      const prevOp = parseOnePassword(prev);
       const ref = await prompts.input({
         message: 'Secret reference (op://<vault>/<item>/<field>)',
-        default: onePasswordReference(prev),
+        default: prevOp?.reference,
         validate: (v) =>
           OP_REFERENCE.test(v.trim()) ||
           'expected op://<vault>/<item>/<field> - in 1Password, open the field menu and pick "Copy Secret Reference"',
       });
-      return onePasswordSource(ref.trim());
+      // Optional, but recommended with several accounts: pins `op` to one account and lets a locked
+      // account raise the desktop unlock prompt instead of failing.
+      const account = normalizeOpAccount(
+        await prompts.input({
+          message: '1Password account (e.g. my.1password.com, acme.1password.eu; Enter to skip)',
+          default: prevOp?.account,
+          validate: (v) => {
+            const a = normalizeOpAccount(v);
+            return (
+              a === '' || OP_ACCOUNT.test(a) || 'expected <name>.1password.com, .ca or .eu (see `op account list`)'
+            );
+          },
+        }),
+      );
+      return onePasswordSource(ref.trim(), account || undefined);
     }
     case 'command': {
       const line = await prompts.input({

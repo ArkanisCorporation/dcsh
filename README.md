@@ -118,15 +118,17 @@ A token source can take four forms:
 
 `dcsh profile add` and the first-run setup build the `token` entry for you:
 
-| Template             | You enter                                        | Stored as                                                                            |
-| -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| 1Password            | a secret reference `op://<vault>/<item>/<field>` | `{ "command": ["op", "read", "op://..."] }`                                          |
-| Custom command       | a command line that prints the token             | `command` as an array; a string if it uses shell syntax (pipes, quotes, `$VAR`, ...) |
-| Environment variable | a variable name (default `DISCORD_TOKEN`)        | `{ "env": "..." }`                                                                   |
-| Token file           | a path                                           | `{ "file": "..." }`                                                                  |
-| Ask every time       | nothing                                          | no `token` key                                                                       |
+| Template             | You enter                                        | Stored as                                                                                        |
+| -------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| 1Password            | a secret reference `op://<vault>/<item>/<field>` | `{ "command": ["op", "read", "op://..."] }`, with `"--account", "<addr>"` after `op` when scoped |
+| Custom command       | a command line that prints the token             | `command` as an array; a string if it uses shell syntax (pipes, quotes, `$VAR`, ...)             |
+| Environment variable | a variable name (default `DISCORD_TOKEN`)        | `{ "env": "..." }`                                                                               |
+| Token file           | a path                                           | `{ "file": "..." }`                                                                              |
+| Ask every time       | nothing                                          | no `token` key                                                                                   |
 
 To get a 1Password secret reference, open the item, use the field's menu and choose **Copy Secret Reference**. The 1Password CLI (`op`) needs to be installed and signed in on the machine that runs dcsh.
+
+The 1Password template also asks for an optional **account** (`my.1password.com`, `<team>.1password.com|.eu|.ca`; `op account list` shows yours). With one set, dcsh runs `op --account <account> read <ref>`. Set it if you have more than one 1Password account. Without it, `op` can resolve the reference against the wrong account. It can also fail outright when the right account is locked, instead of showing the desktop app's unlock prompt.
 
 ## Guards
 

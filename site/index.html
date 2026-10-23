@@ -347,13 +347,14 @@ Welcome to dcsh. No config found, so let's set up your first bot profile.
 <span class="c-ok">✔</span> Profile name <span class="c-kw">default</span>
 <span class="c-ok">✔</span> Where does the bot token come from? <span class="c-kw">1Password</span>
 <span class="c-ok">✔</span> Secret reference (op://&lt;vault&gt;/&lt;item&gt;/&lt;field&gt;) <span class="c-kw">op://Infra/my-bot/credential</span>
+<span class="c-ok">✔</span> 1Password account (e.g. my.1password.com, acme.1password.eu; Enter to skip) <span class="c-kw">acme.1password.eu</span>
 <span class="c-ok">✔</span> Check the token against Discord now? <span class="c-kw">Yes</span>
   <span class="c-dim">ok: token belongs to bot my-bot, in 3 server(s)</span>
 <span class="c-ok">✔</span> Default server to activate on start <span class="c-kw">Arkanis (123456789012345678)</span>
 <span class="c-ok">✔</span> Read-only (block all mutating requests)? <span class="c-kw">No</span>
 
 saved profile "default". Starting the shell...
-connected as my-bot (234567890123456789) via 1Password op://Infra/my-bot/credential
+connected as my-bot (234567890123456789) via 1Password op://Infra/my-bot/credential (acme.1password.eu)
 default/Arkanis<span class="c-prompt">&gt;</span></pre>
         </div>
       </section>
@@ -371,7 +372,9 @@ default/Arkanis<span class="c-prompt">&gt;</span></pre>
             <p>
               Paste a secret reference (<span class="inline">op://vault/item/field</span>, via
               "Copy Secret Reference" in 1Password). dcsh runs
-              <span class="inline">op read</span> on each start.
+              <span class="inline">op read</span> on each start, optionally pinned to one account
+              (<span class="inline">--account acme.1password.eu</span>) so a locked or second account
+              never gets in the way.
             </p>
           </div>
           <div class="card">

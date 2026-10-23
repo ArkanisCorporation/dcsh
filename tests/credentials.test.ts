@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   OP_REFERENCE,
+  OP_ACCOUNT,
+  normalizeOpAccount,
   onePasswordSource,
-  onePasswordReference,
+  parseOnePassword,
   commandSource,
   commandLine,
   detectTemplate,
@@ -21,13 +23,29 @@ describe('1Password references', () => {
   it('stores `op read <ref>` as argv and recognises it again', () => {
     const src = onePasswordSource('op://v/i/f');
     expect(src).toEqual({ command: ['op', 'read', 'op://v/i/f'] });
-    expect(onePasswordReference(src)).toBe('op://v/i/f');
+    expect(parseOnePassword(src)).toEqual({ reference: 'op://v/i/f' });
     expect(detectTemplate(src)).toBe('1password');
+  });
+
+  it('scopes to an account with `op --account <addr> read <ref>`', () => {
+    const src = onePasswordSource('op://v/i/f', 'acme.1password.eu');
+    expect(src).toEqual({ command: ['op', '--account', 'acme.1password.eu', 'read', 'op://v/i/f'] });
+    expect(parseOnePassword(src)).toEqual({ reference: 'op://v/i/f', account: 'acme.1password.eu' });
+    expect(describeCredential(src)).toBe('1Password op://v/i/f (acme.1password.eu)');
+  });
+
+  it('validates and normalises account sign-in addresses', () => {
+    for (const ok of ['my.1password.com', 'acme.1password.eu', 'acme-corp.1password.ca'])
+      expect(OP_ACCOUNT.test(ok)).toBe(true);
+    for (const bad of ['1password.com', 'acme.1password.de', 'acme.example.com', 'a b.1password.com'])
+      expect(OP_ACCOUNT.test(bad)).toBe(false);
+    expect(normalizeOpAccount(' https://ACME.1password.com/signin ')).toBe('acme.1password.com');
   });
 
   it('does not mistake other op invocations for the template', () => {
     expect(detectTemplate({ command: ['op', 'read', 'op://v/i/f', '--no-newline'] })).toBe('command');
     expect(detectTemplate({ command: 'op read op://v/i/f' })).toBe('command');
+    expect(detectTemplate({ command: ['op', '--account', 'nope', 'read', 'op://v/i/f'] })).toBe('command');
   });
 });
 
