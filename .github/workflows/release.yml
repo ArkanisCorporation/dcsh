@@ -67,14 +67,14 @@ jobs:
       contents: read
     steps:
       - name: Checkout tag to publish
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Released tag on push; the dispatch input on manual recovery.
           ref: ${{ github.event.inputs.publish_tag || needs.release.outputs.new-tag }}
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.x
 
@@ -94,7 +94,7 @@ jobs:
           npm pack --pack-destination ./artifact
 
       - name: Upload package tarball
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: npm-package
           path: artifact/*.tgz
@@ -118,13 +118,13 @@ jobs:
       id-token: write # trusted publishing (OIDC exchange + provenance); no build runs in this job
     steps:
       - name: Download package tarball
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-package
           path: artifact
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.x
           registry-url: https://registry.npmjs.org
