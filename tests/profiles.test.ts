@@ -12,6 +12,7 @@ import {
   type Prompts,
   type Verified,
 } from '../src/profiles.js';
+import { commandSource } from '../src/credentials.js';
 import type { Config } from '../src/types.js';
 
 /**
@@ -82,7 +83,8 @@ describe('profileWizard', () => {
     ]);
     const r = await profileWizard(cfg, undefined, { prompts, verify: okVerify, log: quiet });
     expect(r.profile).toEqual({
-      token: { command: ['vault', 'kv', 'get', '-field=token', 'secret/bot'] },
+      // argv vs shell form depends on the host platform; commandSource's own tests pin both
+      token: commandSource('vault kv get -field=token secret/bot'),
       defaultGuild: 'Arkanis',
       readOnly: true,
     });
