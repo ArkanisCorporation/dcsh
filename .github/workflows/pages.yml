@@ -22,7 +22,7 @@ concurrency:
 jobs:
   deploy:
     name: deploy to github pages
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_DEFAULT || 'daedalus' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
