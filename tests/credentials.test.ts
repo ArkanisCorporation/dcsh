@@ -54,7 +54,7 @@ describe('1Password references', () => {
 
 describe('commandSource', () => {
   it('uses argv (no shell) for plain words', () => {
-    expect(commandSource('  vault kv get -field=token secret/bot ')).toEqual({
+    expect(commandSource('  vault kv get -field=token secret/bot ', 'linux')).toEqual({
       command: ['vault', 'kv', 'get', '-field=token', 'secret/bot'],
     });
   });
@@ -69,7 +69,7 @@ describe('commandSource', () => {
     expect(commandSource('VAULT_ADDR=x vault kv get t')).toEqual({ command: 'VAULT_ADDR=x vault kv get t' });
     expect(commandSource('type %USERPROFILE%\\t')).toHaveProperty('command', 'type %USERPROFILE%\\t');
     expect(commandSource('vault kv get t', 'win32')).toEqual({ command: 'vault kv get t' });
-    expect(commandSource('vault kv get -field=token t')).toHaveProperty('command.length', 5);
+    expect(commandSource('vault kv get -field=token t', 'linux')).toHaveProperty('command.length', 5);
   });
 
   it('rejects an empty command and round-trips through commandLine', () => {
