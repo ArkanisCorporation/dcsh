@@ -76,7 +76,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.x
+          node-version: 26.x
 
       - name: Enable Corepack (pnpm from packageManager)
         run: corepack enable
@@ -126,7 +126,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.x
+          node-version: 26.x
           registry-url: https://registry.npmjs.org
 
       # Pin npm to an exact, known-good version (>= 11.5.1 for trusted publishing); bump via PR.
