@@ -48,6 +48,8 @@ jobs:
       issues: write
       pull-requests: write
     with:
+      runs-on: ${{ vars.RUNNER_DEFAULT || 'daedalus' }}
+      runs-on-self-hosted: ${{ (vars.RUNNER_DEFAULT || 'daedalus') != 'ubuntu-latest' }}
       node-version: 24.x
       # Plugins not bundled with semantic-release core.
       extra-plugins: |
@@ -60,7 +62,7 @@ jobs:
     # Push path: only when semantic-release actually cut a new version. Dispatch path: always, for
     # the manual tag-recovery case (the release job is skipped, so always() is needed to run).
     if: ${{ always() && (needs.release.outputs.release-published == 'true' || github.event_name == 'workflow_dispatch') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_DEFAULT || 'daedalus' }}
     permissions:
       contents: read
     steps:
@@ -107,6 +109,8 @@ jobs:
     # then gates on build-package having actually succeeded. A bare result check is NOT enough - it
     # still gets skip-propagated.
     if: ${{ always() && needs.build-package.result == 'success' }}
+    # Hosted on purpose: npm trusted publishing and provenance only support GitHub-hosted runners.
+    # Self-hosted runners are rejected by npm, so this job must not move to the daedalus pool.
     runs-on: ubuntu-latest
     environment: release
     permissions:

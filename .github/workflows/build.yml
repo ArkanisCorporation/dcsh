@@ -14,6 +14,9 @@ jobs:
     permissions:
       contents: read
     with:
+      # Fork PRs stay on GitHub-hosted runners so untrusted code never reaches self-hosted ones.
+      runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus' }}
+      runs-on-self-hosted: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus') != 'ubuntu-latest' }}
       node-version: 24.x
       package-manager: pnpm
 
@@ -23,6 +26,9 @@ jobs:
     permissions:
       contents: read
     with:
+      # Fork PRs stay on GitHub-hosted runners so untrusted code never reaches self-hosted ones.
+      runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus' }}
+      runs-on-self-hosted: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus') != 'ubuntu-latest' }}
       node-version: 24.x
       package-manager: pnpm
 
@@ -32,6 +38,9 @@ jobs:
     permissions:
       contents: read
     with:
+      # Fork PRs stay on GitHub-hosted runners so untrusted code never reaches self-hosted ones.
+      runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus' }}
+      runs-on-self-hosted: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus') != 'ubuntu-latest' }}
       node-version: 24.x
       package-manager: pnpm
 
@@ -40,3 +49,7 @@ jobs:
     uses: ArkanisCorporation/ci/.github/workflows/wf-lint-github-actions.yml@v1
     permissions:
       contents: read
+    with:
+      # Fork PRs stay on GitHub-hosted runners so untrusted code never reaches self-hosted ones.
+      runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus' }}
+      runs-on-self-hosted: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.RUNNER_DEFAULT || 'daedalus') != 'ubuntu-latest' }}
