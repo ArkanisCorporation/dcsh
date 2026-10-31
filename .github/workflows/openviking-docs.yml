@@ -7,7 +7,7 @@ name: openviking-docs
 
 on:
   push:
-    branches: ["main"] # repo-standards:default-branch
+    branches: ['main'] # repo-standards:default-branch
     # Must match repo-standards OPENVIKING_DOC_GLOBS and ci's default include-paths,
     # plus this file so merging the adoption PR runs the first import.
     paths:
