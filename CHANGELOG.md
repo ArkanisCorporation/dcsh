@@ -1,3 +1,10 @@
+## [0.3.5](https://github.com/ArkanisCorporation/dcsh/compare/v0.3.4...v0.3.5) (2026-11-16)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @inquirer/prompts to v8.8.0 ([#53](https://github.com/ArkanisCorporation/dcsh/issues/53)) ([c7176b4](https://github.com/ArkanisCorporation/dcsh/commit/c7176b4ba0daab1fb42ea7795aacd4780fda5223))
+
 ## [0.3.4](https://github.com/ArkanisCorporation/dcsh/compare/v0.3.3...v0.3.4) (2026-11-15)
 
 
